@@ -129,7 +129,7 @@ int main(int argc, char *argv[]){
 	//determine pvalues for PFMs 
 	string motif = "";
 	Matrix<double> transition_matrix(4,4);
-	ifstream transition_file("/MMCI/MS/EpiregDeep/work/TFtoMotifs/Phase2/transition_matrix.txt"); //TODO: datenspezifisch bestimmen
+	ifstream transition_file("necessaryInputFiles/transition_matrix.txt"); //TODO: datenspezifisch bestimmen
         transition_file>> transition_matrix;
 //	cout << "transition matrix:\n" << transition_matrix << endl;
 	unordered_map<string, vector<double>> all_pvalues;
