@@ -69,7 +69,8 @@ template<typename T> Matrix<T>::~Matrix<T>()
 template<typename T> Matrix<T>::Matrix(const Matrix<T>& m_)
 :num_row_{m_.num_row_},num_col_{m_.num_col_}//,matrix_{m_.matrix_}
 {
-//	cout << " copy constructor matrix" << endl; 
+	//cout << " copy constructor matrix" << endl; 
+	matrix_ = m_.matrix_;
 }
 
 // returns numbers of rows

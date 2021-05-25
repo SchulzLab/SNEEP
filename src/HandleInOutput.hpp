@@ -12,6 +12,7 @@
 #include <chrono> //for time
 #include <getopt.h> //einlesen der argumente
 #include <unordered_map>
+#include <random>
 using namespace std;
 
 class InOutput{
@@ -26,18 +27,19 @@ class InOutput{
 	void parseInputPara(int argc, char *argv[]);
 	friend ostream& operator<< (ostream& os, InOutput& io);
 	ofstream openFile(string path, bool app);
-	void parseSNPsBedfile(string inputFile, int number);
+	int parseSNPsBedfile(string inputFile, int number);
 	string getToken(string& line, char delim);
 	void callHelp();
 	int CountEntriesFirstLine(string inputFile, char delim);
 	void checkIfSNPsAreUnique();
+	void parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed);
 
 	//getter
 	double getPvalue();
 	double getPvalueDiff();
 	string getFrequence();
 	string getFootprints();
-	string getMutatedSequences();
+	//string getMutatedSequences();
 	string getMaxOutput();
 	string getActiveTFs();
 	string getREMs();
@@ -59,13 +61,22 @@ class InOutput{
 	string getResultFile();
 	string getNotConsideredSNPs();
 	string getGenome();
+	string getdbSNPs();
+	int getRounds();
+	string getCodingRegions();
+	int getConsideredSNPs();
+	string getBackgroundSequences();
+	int getNumberThreads();
+	int getSeed();
+	int getMinTFCount();
 
 	private: //glaube das sollte nicht private sein
 	int num_threads = 1; //-n
-	double pvalue = 0.05; //-p
-	double pvalue_diff = 0.05; //-c
-	string frequence = "necessaryInputFiles/frequence.txt"; //-b
-	string mutatedSequences = ""; //-s
+	double pvalue = 0.05; //-p	
+	double pvalue_diff = 0.01; //-c
+	//string frequence = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/project_Luxembourg/frequence.txt"; //-b
+	string frequence = "/projects/sneep/work/SNEEP/Luxembourg_SNP_Analysis/frequence.txt"; //-b
+	//string mutatedSequences = ""; //-s
 	string footprint = ""; //-f path to footprint file
 	string outputDir = "DifferentialBindingOutput/"; //-o
 	string allOutput =  ""; //-d 
@@ -89,7 +100,15 @@ class InOutput{
 	string ensembleGeneName = "";
 	double thresholdTFActivity = 0.0;
 	string sourceDir = "src";
-	string genome = "necessaryInputFiles/hg38.fa";
+	//string genome = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/hg38.fa";
+	string genome = "/home/nbaumgarten/hg38.fa";
+	int samplingRounds = 0;
+	//string codingRegions = "";
+	int consideredSNPs  = 0;
+	string backgroundSeq = "";
+	string dbSNPs = "";
+	int seed = 1;
+	int minTFCount = 0;
 };
 
 //construtor
@@ -105,7 +124,7 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:saf:mt:r:e:d:i:g:x:h")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:saf:mt:r:e:d:i:g:x:j:k:l:q:h")) != -1) {
        		switch (opt) {
 		case 'o':
 			outputDir = optarg;
@@ -127,10 +146,10 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			frequence = optarg;
 			cout << "-b frequence: " << frequence << endl;
 			break;
-		case 's':
-			mutatedSequences = outputDir + "mutatedSequences.txt";
-			cout << "-s mutatedSequences: " << mutatedSequences << endl;
-			break;
+	//	case 's':
+	//		mutatedSequences = outputDir + "mutatedSequences.txt";
+	//		cout << "-s mutatedSequences: " << mutatedSequences << endl;
+	//		break;
 		case 'a':
 			allOutput = outputDir + "AllDiffBindAffinity.txt";
 			cout << "-a AllDiffBindAff: " << allOutput << endl;
@@ -167,9 +186,25 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			mappingGeneNames = optarg;
 			cout << "-g ensemblID to GeneName mapping: " << mappingGeneNames << endl;
 			break;
+		case 'l':
+			seed = stoi(optarg);
+			cout << "-l seed: " << seed << endl;
+			break;
 		case 'x':
 			genome = optarg;
 			cout << "-x path to genome: " << genome << endl;
+			break;
+		case 'j':
+			samplingRounds = stoi(optarg);
+			cout << "-j number of randmoly sampled backgrounds: " << samplingRounds << endl;
+			break;
+		case 'k':
+			dbSNPs = optarg;
+			cout << "-k path to dbSNPs: " << dbSNPs << endl;
+			break;
+		case 'q':
+			minTFCount = stoi(optarg);
+			cout << "-q min TF count: " << minTFCount << endl;	
 			break;
 		case 'h':
 			callHelp();
@@ -197,6 +232,9 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	if (REMs != ""){
 		overlappingREMs = outputDir + "SNPsOverlappingREMs.bed";
 	}
+	if (samplingRounds > 0){
+		backgroundSeq = outputDir + "backgroundSequences.bed";
+	}
 	if (optind + 2 > argc)  // there should be 2 more non-option arguments
 		throw invalid_argument("missing motif_dir, snp_file"); // TODO: besser in motif file umwandeln
 
@@ -221,7 +259,7 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-c p-value threshold diffBindAff: " << io.pvalue_diff << 
 	"\n#\t-b file of background freq: " << io.frequence << 
 	"\n#\t-f footprint/region file: " << io.footprint << 
-	"\n#\t-s mutatedSequences: " << io.mutatedSequences << 
+	//"\n#\t-s mutatedSequences: " << io.mutatedSequences << 
 	"\n#\t-m maxOutput: " << io.maxOutput << 
 	"\n#\t-t activeTFs: " << io.activeTFs << 
 	"\n#\t-r REMs: " << io.REMs <<
@@ -232,6 +270,10 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-i path to the source dir: " << io.sourceDir <<
 	"\n#\t-g EnsemblID to GeneName mapping REMs: " << io.mappingGeneNames << 
 	"\n#\t-x path to genome: " << io.genome <<
+	"\n#\t-j rounds of background sampling: " << io.samplingRounds <<
+	"\n#\t-k path to dbSNPs: " << io.dbSNPs <<
+	"\n#\t-l start seed for random sampling: " << io.seed <<
+	"\n#\t-q min TF count: " << io.minTFCount << 
 	"\n#\tPFMs: " << io.PFMs << 
 	"\n#\tSNPs file: " << io.snpsNotUnique << 
 	"\n#\tinfo file: " << io.info;
@@ -255,7 +297,7 @@ ofstream InOutput::openFile(string path, bool app){
 }
 
 //TODO:kommentieren
-void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
+int InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 
 	double counterOverlappingREMs = 0;
 	double counterOverlappingPeaks = 0;
@@ -271,7 +313,6 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		REMs = true;
 		ifstream overlappingREMs(getOverlappingREMs());
 		int entries = CountEntriesFirstLine(getREMs(),'\t');
-		cout << entries << endl;
 		//read mapping ensembl id -> gene Name
 		unordered_map<string, string> mappingGeneNames;
 		ifstream mapping(getMappingGeneNames());
@@ -279,7 +320,8 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 			ensembl = getToken(line, ',');
 			mappingGeneNames[ensembl] = line;
 		} 
-		while (getline(overlappingREMs, line, '\n')){	
+		while (getline(overlappingREMs, line, '\n')){
+			line = line + '\n';
 			vector<string> helper; //stores info per line
 			string chr = getToken(line, delim);
 			string start = getToken(line, delim);
@@ -306,6 +348,8 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 			end =  getToken(line,delim);
 			string var1 =  getToken(line,delim);
 			string var2 =  getToken(line,delim);
+			//string id = getToken(line,delim);
+			//string MAF = getToken(line,delim);
 			string key = chr + ":" + start + "-" + end + "_" + var1 + "_" + var2;
 			//cout << "key REMs: " << key << endl;
 
@@ -326,12 +370,13 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		}
 		overlappingREMs.close();
 	}
-	//cout << "middle parsing" << endl;
 	ofstream output(getSNPBedFile());
 	ofstream output2(getBedFileInDels());//store InDels
 
+	string id = "", MAF = "";
+
 	while (getline(input, line, '\n')){
-	
+		line = line + '\n';	
 		//getline(input, line, '\n'); //getLine
 		//extract information
 		chr = getToken(line, delim);
@@ -343,12 +388,14 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		var1 = getToken(line, delim);
 		///cout << "var1: " << var1 << endl;
 		var2 = getToken(line, delim);
+		id = getToken(line,delim);
+		MAF = getToken(line,delim);
 		//cout << "var2: " << var2 << endl;
 		string key = chr + ":" + to_string(start+50) + "-" + to_string(end-50) + "_" + var1 + "_" + var2;
 		//cout << "key: " << key << endl;
 		if ((var1 != "*") and (var2 != "*") and (var1.length() == 1) and (var2.length() == 1)){ 
 			counterOverlappingPeaks++;
-			output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+50) << "-"<< to_string(end-50) << ";" << var1 << ";" << var2;// << '\t' << var1<< '\t' <<  var2 << '\n';
+			output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+50) << "-"<< to_string(end-50) << ";" << var1 << ";" << var2 << ";" << id << ";" << MAF;// << '\t' << var1<< '\t' <<  var2 << '\n';
 			//store skipped entries as header of the fasta file
 			if (getOverlappingFootprints() == inputFile){
 				vector<string> entriesLine;
@@ -368,6 +415,8 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 			if (REMs){
 				if (infoREMs.count(key) == 0){
 					output << ";.;.;.;.;.;.;.;.;.;.;."; 
+					//fuer dennis Hi-c file
+					//output << ";.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;."; 
 				}else{
 					counterOverlappingREMs++;
 					vector<string> helper = infoREMs[key];
@@ -389,6 +438,8 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	}else{
 		info_ << "!\toverlapPeak: -\n"; //info file
 	}
+	consideredSNPs = counterOverlappingPeaks;
+	cout << "peaks considered: " << consideredSNPs << endl;
 
 	if (getREMs() != ""){
 		info_ << "!\toverlapREMAllSNPs: " << counterOverlappingREMs << '\n';
@@ -399,12 +450,13 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	input.close();
 	output.close();
 	output2.close();
+	return consideredSNPs;
 }
 
 string InOutput::getToken(string& line, char delim){
 	int pos = 0;
 	//cout << line.find(delim) << endl;
-	if((pos = line.find(delim)) != std::string::npos) {
+	if(((pos = line.find(delim)) != std::string::npos) || ((pos = line.find('\n')) != std::string::npos)){
     		string token = line.substr(0, pos);
     		line.erase(0, pos + 1);
 		return token;
@@ -418,9 +470,9 @@ void InOutput::callHelp(){
 	cout << "Call program with ./src/differentialBindingAffinity_multipleSNPs\noptinal parameters:\n" << 
 	"-o outputDir (default DifferentialBindingOutput/, if you want to specific it, it must be done as first argument)\n" <<
 	"-n number threads (default 1)\n-p pvalue for motif hits (default 0.05)\n"<<
-	"-c pvalue differential binding (default 0.05)\n" <<
-	"-b frequence (default /MMCI/MS/EpiregDeep/work/TFtoMotifs/Phase2/frequence.txt)\n" <<
-	"-s file where all mutated sequences can be stored\n" <<
+	"-c pvalue differential binding (default 0.01)\n" <<
+	"-b frequence (/projects/sneep/work/SNEEP/Luxembourg_SNP_Analysis/frequence.txt)\n" <<
+	//"-s file where all mutated sequences can be stored\n" <<
 	"-a file, where all differential bindinding affinity can be stored\n"<<
 	"-f additional footprint/region file\n" <<
 	"-m file, where maxDiffBindAffinity is stored (default MaxDiffBindingAffinity.txt)\n"<<
@@ -429,8 +481,12 @@ void InOutput::callHelp(){
 	"-r additional, bed-like REMs file\n"<<
 	"-g path to file containing EnsemblID to GeneName mapping, must be given if REMs are given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
 	"-e tab seperated file with ensemblID geneName mapping of the TFs ( must be given if activeTFs file is given)\n"<<
-	"-x path to genome (default /MMCI/MS/EpiregDeep/work/TFtoMotifs/hg38.fa)\n"
+	"-x path to genome (default /home/nbaumgarten/hg38.fa)\n"
+	"-j rounds sampled background\n"
+	"-k path to coding regions (BED, GFF or VCF)\n"
 	"-i path to the source (src) dir (default src)\n"<<
+	"-l start seed (default 1)\n" <<
+	"-q min TF count which needs to be exceeded to be considered in random sampling (default 0)" << 
 	"-h help\n"<<
 	"transfac PFM file and bed-like SNP file must be given"<<endl;
 }
@@ -495,6 +551,154 @@ void InOutput::checkIfSNPsAreUnique(){
 	output.close();
 	info_.close();
 }
+
+
+//TODO:kommentieren
+void InOutput::parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed){
+
+//	double counterOverlappingREMs = 0;
+//	double counterOverlappingPeaks = 0;
+//	ofstream info_ = openFile(getInfoFile(), true);
+
+	ifstream input(inputFile); //either overlappingPeak file or snpFile
+	bool REMs = false;
+	unordered_map<string, vector<string>> infoREMs; //chr:start:end_var1_var2 -> chr:start-end of REM, linked gene ensembl id, gene name, activity, coefficient
+	char delim = '\t';
+	int start = 0, end = 0, pos = 0;
+	string chr = "", var1 = "", var2 = "", token = "", line = "", ensembl = ""; //stores current line
+	//cout << "before doing anything" << endl;
+	if (getREMs() != ""){
+		int entries = 12; //TODO: stimmt das?
+		REMs = true;
+		ifstream overlappingREMs(REMsOverlappFile);
+		//int entries = CountEntriesFirstLine(getREMs(),'\t');
+		//read mapping ensembl id -> gene Name
+		unordered_map<string, string> mappingGeneNames;
+		ifstream mapping(getMappingGeneNames());
+		while (getline(mapping, line, '\n')){
+			ensembl = getToken(line, ',');
+			mappingGeneNames[ensembl] = line;
+		} 
+		while (getline(overlappingREMs, line, '\n')){
+			line = line + '\n';
+			vector<string> helper; //stores info per line
+			string chr = getToken(line, delim);
+			string start = getToken(line, delim);
+			string end = getToken(line, delim);
+			string comb = chr + ":" + start + "-" + end;
+//			cout << "comb: " << comb << endl;
+			helper.push_back(comb);
+			for (int i = 3; i <= entries-1; ++i){ //read only entries REMs
+				pos = line.find(delim);
+				var2 = line.substr(0, pos);
+				helper.push_back(var2); //REM,ensembl id, geneName,  REMid,coefficient,pvalue, normModelScore, meanDNase1Signal, stdDNase1Signal,consortium, version
+				if (i == 3){//determine gene name
+					helper.push_back(mappingGeneNames[var2]);
+				}
+				line.erase(0, pos + 1);
+			}
+		/*	for(auto& elem : helper){
+				cout << elem << " ";
+			}
+			cout << "\n";*/
+			//read SNP Info
+			chr =  getToken(line,delim);
+			start =  getToken(line,delim);
+			end =  getToken(line,delim);
+			string var1 =  getToken(line,delim);
+			string var2 =  getToken(line,delim);
+			//string id = getToken(line,delim);
+			//string MAF = getToken(line,delim);
+			string key = chr + ":" + start + "-" + end + "_" + var1 + "_" + var2;
+			//cout << "key REMs: " << key << endl;
+
+			if (infoREMs.count(key)>0){ //key exists
+				vector<string> existingInfo = infoREMs[key];
+				for(int i = 0; i < existingInfo.size(); ++i){ //add new info to existing entries
+					existingInfo[i] = existingInfo[i] + "," + helper[i]; 
+				}
+			/*	cout << "existing Info" << endl;
+				for(auto& elem : existingInfo){
+					cout << elem << " ";
+				}
+				cout << "\n"; */
+				infoREMs[key] = existingInfo; //update key info
+			}else{
+				infoREMs[key] = helper;
+			}
+		}
+		overlappingREMs.close();
+	}
+	//cout << "done withe REM file" << endl;
+	ofstream output(outputFile);
+	//ofstream output2(getBedFileInDels());//store InDels
+	string id = "", MAF = "";
+	int counter_commas = 0;
+	mt19937 generator(seed); // seed muss fuer jeden thread ein andere sein 	
+	int randomNum = 0; //sampled unifrom distributed number
+	int counterSNPs = 0;
+
+	while (getline(input, line, '\n')){
+		counterSNPs++;
+		line = line + '\n';	
+		//getline(input, line, '\n'); //getLine
+		//extract information
+		chr = getToken(line, delim);
+		//cout << "chr: " << chr << endl;
+		start = stoi(getToken(line, delim)) - 50;
+		//cout << "start: " << start << endl;
+		end = stoi(getToken(line, delim)) + 50;
+		//cout << "end: " << end << endl;
+		var1 = getToken(line, delim);
+	//	cout << "var1: " << var1 << endl;
+		var2 = getToken(line, delim);
+		id = getToken(line,delim);
+		MAF = getToken(line,delim);
+		//cout << "var2: " << var2 << endl;
+		string key = chr + ":" + to_string(start+50) + "-" + to_string(end-50) + "_" + var1 + "_" + var2;
+		//cout << "key: " << key << endl;
+
+		//if there are multiple options for the mutant base, pick randomly one
+		if (var2.length() != 1){
+			counter_commas = count(var2.begin(), var2.end(), ',');
+			vector<string> helper; 
+			for (int i = 0; i < counter_commas; i++){
+				helper.push_back(getToken(var2, ','));
+			}
+			helper.push_back(var2); //add last element (without a comma at the end)
+			uniform_int_distribution<int> distribution(0, counter_commas); //specifiy distribution of the random number
+			randomNum = distribution(generator); // generat random number
+
+			var2 = helper[randomNum];
+		//	if (var2 == "N" || var2 == "n"){
+		//		var2 = helper[0]; 
+		//	}
+		}
+
+		//if ((var1 != "*") and (var2 != "*") and (var1.length() == 1) and (var2.length() == 1)){ 
+		output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+50) << "-"<< to_string(end-50) << ";" << var1 << ";" << var2 << ";" << id << ";" << MAF << ";.";// << '\t' << var1<< '\t' <<  var2 << '\n';
+		// add REM info
+		if (REMs){
+			if (infoREMs.count(key) == 0){
+				output << ";.;.;.;.;.;.;.;.;.;.;."; 
+				//fuer dennis Hi-c file
+				//output << ";.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;."; 
+			}else{
+				vector<string> helper = infoREMs[key];
+				for(auto& elem : helper){
+			//		cout << elem << " ";
+					output <<  ";" << elem;
+				}
+				//cout << '\n';
+			}
+		}
+		output << '\n';
+	}
+	input.close();
+	output.close();
+	return;// counterSNPs;
+}
+
 //getter
 double InOutput::getPvalue(){
 	return this->pvalue;
@@ -512,9 +716,9 @@ string InOutput::getFootprints(){
 	return this->footprint;
 }
 
-string InOutput::getMutatedSequences(){
-	return this->mutatedSequences;
-}
+//string InOutput::getMutatedSequences(){
+//	return this->mutatedSequences;
+//}
 
 string InOutput::getMaxOutput(){
 	return this->maxOutput;
@@ -588,5 +792,29 @@ string InOutput::getNotConsideredSNPs(){
 }
 string InOutput::getGenome(){
 	return this->genome;
+}
+int InOutput::getRounds(){
+	return this->samplingRounds;
+}
+//string InOutput::getCodingRegions(){
+//	return this->codingRegions;
+//}
+int InOutput::getConsideredSNPs(){
+	return this->consideredSNPs;
+}
+int InOutput::getSeed(){
+	return this->seed;
+}
+string InOutput::getBackgroundSequences(){
+	return this->backgroundSeq;
+}
+string InOutput::getdbSNPs(){
+	return this->dbSNPs;
+}
+int InOutput::getNumberThreads(){
+	return this->num_threads;
+}
+int InOutput::getMinTFCount(){
+	return this->minTFCount;
 }
 #endif/*HANDLEINOUTPUT_HPP*/
