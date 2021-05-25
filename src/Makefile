@@ -1,13 +1,10 @@
 
 #sources
 SRC =  	Matrix_new.cpp \
-	differentialBindingAffinity.cpp \
-	determineSignificantHitsWithoutDifferentialBindingAffinity.cpp \
 	pvalue_copy.cpp  \
 	callBashCommand.cpp \
 	HandleInOutput.cpp \
 	differentialBindingAffinity_multipleSNPs.cpp \
-	differentialBindingAffinity_multipleSNPsSEMs.cpp \
 	sampleRandomRsIDs.cpp
 
 platform=$(shell uname -s)
