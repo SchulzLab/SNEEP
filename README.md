@@ -2,15 +2,17 @@
 SNp Exploration and Analysis using EPigenomics data
 
 # Dependencies:
-- c++ 
+- c++11 
+- g++ (9.3.0)
 - python3.x
-- bedtools
-- knitr and R for overview pdf
-- openmp?!
+- bedtools (v2.27.1)
+- knitr and R for overview pdf (details?!)
+- openmp
+- R (4.0.4), ggplot2 library
 
 
 # Compile: 
-To compile the C++ code of SNEEP run the following 
+To compile our SNEEP code, run the following 
 ```
 cd src/
 make
