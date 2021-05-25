@@ -5,7 +5,7 @@ SRC =  	Matrix_new.cpp \
 	callBashCommand.cpp \
 	HandleInOutput.cpp \
 	differentialBindingAffinity_multipleSNPs.cpp \
-	sampleRandomRsIDs.cpp
+	sampleRandomRsIDs2.cpp
 
 platform=$(shell uname -s)
 
