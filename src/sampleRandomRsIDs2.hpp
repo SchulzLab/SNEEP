@@ -57,14 +57,14 @@ rsIDsampler::rsIDsampler(string pathTodbSNPFile_, vector<double>& MAF_, BashComm
 :binwidth(0.01), dbSNPFile(pathTodbSNPFile_),MAF(MAF_), bc(bc_)
 {
 //	BashCommand bc;
-	cout << "constructor with default setting (num_reg = 1 and len = 100)" << endl;
+//	cout << "constructor with default setting (num_reg = 1 and len = 100)" << endl;
 }
 
 // constructor normally used
 rsIDsampler::rsIDsampler(double binwidth_, string pathTodbSNPFile_, vector<double>& MAF_, BashCommand& bc_)
 :binwidth(binwidth_), dbSNPFile(pathTodbSNPFile_),MAF(MAF_), bc(bc_)
 {
-	cout << "constructor with user defind settings" << endl;
+//	cout << "constructor with user defind settings" << endl;
 }
 
 //deconstructor
@@ -135,10 +135,10 @@ vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_c
 		}
 	}
 	//plot histograms for random SNPs
-	#pragma omp parallel for num_threads(numThreads)
+	/*#pragma omp parallel for num_threads(numThreads)
 	for(int r = 0; r < rounds; ++r){
 		bc.callHistogram(histogram_files[r], outputDir +  "/histrogram_" + to_string(r) + ".pdf", sourceDir);// plot for control
-	}
+	}*/
 		
 	return SNP_files;
 }

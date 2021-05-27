@@ -83,9 +83,9 @@ void BashCommand::mkdir(string dir, string options, bool remove){
 }	
 
 void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold){
-	cout << "sourceDir: " << sourceDir<< " activeTFs: " << activeTFs << " PFMs: " << TransfacPFMs << "PFMdir: " << PFMsDir << " ensembl names: " << ensemble_name << " threshold: " << threshold << endl; 
+//	cout << "sourceDir: " << sourceDir<< "/src/ activeTFs: " << activeTFs << " PFMs: " << TransfacPFMs << "PFMdir: " << PFMsDir << " ensembl names: " << ensemble_name << " threshold: " << threshold << endl; 
 
-	string command = "python3 ./" + sourceDir + "/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
+	string command = "python3 ./" + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
 //	cout << "command: " << command << endl;
 
 	system(command.c_str());
@@ -93,7 +93,7 @@ void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string act
 }
 
 void BashCommand::callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir){
-	string command = "python3 ./" + sourceDir + "/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
+	string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
 	system(command.c_str());
 	return;
 }
@@ -151,7 +151,7 @@ void BashCommand::bedtoolsShuffle(string randomSequences, string genomesFile, st
 
 void BashCommand::callHistogram(string input, string output, string sourceDir){
 
-	string command = "Rscript " + sourceDir + "/histogram.R " + input + " " + output;
+	string command = "Rscript " + sourceDir + "/src/histogram.R " + input + " " + output;
 	
 	system(command.c_str());
 

@@ -73,11 +73,10 @@ int main(int argc, char *argv[]){
 	info.close();
 
 	io.checkIfSNPsAreUnique(); // removes SNPs from inputSNP list which are not unique  and stores them in info file
-	cout << "checked if SNPs are unique" << endl;
+	//cout << "checked if SNPs are unique" << endl;
 	//overlap with REMs
 	string SNPFile = io.getSNPs();
 	int entriesSNPFile = io.CountEntriesFirstLine(SNPFile, '\t'); //count entries in the SNPFile
-	cout << "count entries snp file " << endl;
 
 	//open result file and write header
 	ofstream resultFile = io.openFile(io.getResultFile(), false);	
@@ -113,7 +112,7 @@ int main(int argc, char *argv[]){
 	cout << "number SNPs: " << numberSNPs <<endl;
 	//call getFasta
 	bc.getFasta(io.getSNPBedFile(), io.getSNPfastaFile(), "-name");
-	cout << "after getFastaa" << endl;
+	//cout << "after getFastaa" << endl;
 
 	//check which TFs are active and write this TFs seperated in files  (done with a python script) also determine frequence matrix from the count matrices
 	string activeTFs = io.getActiveTFs();
@@ -132,8 +131,7 @@ int main(int argc, char *argv[]){
 	//determine pvalues for PFMs 
 	string motif = "";
 	Matrix<double> transition_matrix(4,4);
-	//ifstream transition_file("/MMCI/MS/EpiregDeep/work/TFtoMotifs/Phase2/transition_matrix.txt"); //TODO: datenspezifisch bestimmen
-	ifstream transition_file("/home/nbaumgarten/Phase2/transition_matrix.txt"); //TODO: datenspezifisch bestimmen
+	ifstream transition_file(io.getSourceDir() + "/necessaryInputFiles/transition_matrix.txt");
         transition_file>> transition_matrix;
 
 	unordered_map<string, vector<double>> all_pvalues;
@@ -187,7 +185,7 @@ int main(int argc, char *argv[]){
 		motifNames.push_back(PWM_files[i].substr(0 , PWM_files[i].size() -4)); //set motif
 		lenMotifs.push_back(PWMs[i].ncol());
 	}	
-	cout << "before parallel loop" << endl;
+	//cout << "before parallel loop" << endl;
 	//determine average counts for TFs, genes and REMs
 	unordered_map<string, double> realData_TFs;
 	for (auto& elem : motifNames){ //initialize the TF map
@@ -352,7 +350,6 @@ int main(int argc, char *argv[]){
 	
 	//write TFs and co to files
 	string outputDir = io.getOutputDir();
-	cout << "outputDir: " << outputDir << endl;
 	ofstream outputTFs;
 	outputTFs.open(outputDir + "/TF_count.txt");
 	double helper_g = 0;
@@ -472,7 +469,7 @@ int main(int argc, char *argv[]){
 				current_sequences[n] = current_line;
 			}
 			fasta.close(); // close fasta file
-			cout<< "after read fasta" << endl;
+	//		cout<< "after read fasta" << endl;
 			
 			#pragma omp parallel for  num_threads(io.getNumberThreads())
 			for (int i = 0; i < numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
@@ -592,8 +589,8 @@ int main(int argc, char *argv[]){
 				grr++;
 				preLog[elem.first] = elem.second;
 			}
-			cout << "round r: " << r << " einträge helper_preLog: " << grr << endl;  
-			cout << "size preLog: " << preLog.size() << '\n'<<  endl;
+			//cout << "round r: " << r << " einträge helper_preLog: " << grr << endl;  
+			//cout << "size preLog: " << preLog.size() << '\n'<<  endl;
 			helper_preLog.clear(); //empty helper_preLog
 		}
 		outputTFs.close(); //close TF_counts file
@@ -673,7 +670,7 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 }
 
 vector<double> readFrequence(string frequence){
-	
+
 	vector<double> freq;
 	if(frequence == "")
 		throw invalid_argument("path to frequence.txt is not set");

@@ -75,7 +75,7 @@ class InOutput{
 	double pvalue = 0.05; //-p	
 	double pvalue_diff = 0.01; //-c
 	//string frequence = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/project_Luxembourg/frequence.txt"; //-b
-	string frequence = "/projects/sneep/work/SNEEP/Luxembourg_SNP_Analysis/frequence.txt"; //-b
+	string frequence = "necessaryInputFiles/frequence.txt"; //-b
 	//string mutatedSequences = ""; //-s
 	string footprint = ""; //-f path to footprint file
 	string outputDir = "DifferentialBindingOutput/"; //-o
@@ -99,9 +99,10 @@ class InOutput{
 	string notConsideredSNPs = "";
 	string ensembleGeneName = "";
 	double thresholdTFActivity = 0.0;
-	string sourceDir = "src";
+	string sourceDir = "./";
 	//string genome = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/hg38.fa";
-	string genome = "/home/nbaumgarten/hg38.fa";
+	//string genome = "/home/nbaumgarten/hg38.fa";
+	string genome = "necessaryInputFiles/hg38.fa";
 	int samplingRounds = 0;
 	//string codingRegions = "";
 	int consideredSNPs  = 0;
@@ -114,7 +115,7 @@ class InOutput{
 //construtor
 InOutput::InOutput()
 {
-	cout << "constructor" << endl;
+//	cout << "constructor" << endl;
 }
 //deconstructor
 InOutput::~InOutput()
@@ -267,7 +268,7 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-n number threads: " << io.num_threads << 
 	"\n#\t-e ensemblID geneName mapping TFs: " << io.ensembleGeneName << 
 	"\n#\t-d threshold TF activity: " << io.thresholdTFActivity <<
-	"\n#\t-i path to the source dir: " << io.sourceDir <<
+	"\n#\t-i path to the source dir (SNEEP gitHub Repository): " << io.sourceDir <<
 	"\n#\t-g EnsemblID to GeneName mapping REMs: " << io.mappingGeneNames << 
 	"\n#\t-x path to genome: " << io.genome <<
 	"\n#\t-j rounds of background sampling: " << io.samplingRounds <<
@@ -471,22 +472,22 @@ void InOutput::callHelp(){
 	"-o outputDir (default DifferentialBindingOutput/, if you want to specific it, it must be done as first argument)\n" <<
 	"-n number threads (default 1)\n-p pvalue for motif hits (default 0.05)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
-	"-b frequence (/projects/sneep/work/SNEEP/Luxembourg_SNP_Analysis/frequence.txt)\n" <<
+	"-b frequence (/necessaryInputFiles/frequence.txt)\n" <<
 	//"-s file where all mutated sequences can be stored\n" <<
-	"-a file, where all differential bindinding affinity can be stored\n"<<
-	"-f additional footprint/region file\n" <<
-	"-m file, where maxDiffBindAffinity is stored (default MaxDiffBindingAffinity.txt)\n"<<
-	"-t additional file where activeTFs is stored (e.g RNA-seq or expression data in the format ensemblID\texpression-value)\n" <<
+	"-a if flag is set,  all computed differential bindinding affinities are stored in outputDir/AllDiffBindAffinity.txt\n"<<
+	"-f additional footprint/open chromatin region file\n" <<
+	"-m if flag is set, the  maxDiffBindAffinity is stored in outputDir/MaxDiffBindingAffinity.txt\n"<<
+	"-t additional file where activeTFs are stored (e.g RNA-seq or expression data in a tab-seperated format e.g. ensemblID\texpression-value)\n" <<
 	"-d threshold TF activity (must be given if -t is given)\n"<<
 	"-r additional, bed-like REMs file\n"<<
-	"-g path to file containing EnsemblID to GeneName mapping, must be given if REMs are given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
-	"-e tab seperated file with ensemblID geneName mapping of the TFs ( must be given if activeTFs file is given)\n"<<
-	"-x path to genome (default /home/nbaumgarten/hg38.fa)\n"
-	"-j rounds sampled background\n"
-	"-k path to coding regions (BED, GFF or VCF)\n"
-	"-i path to the source (src) dir (default src)\n"<<
+	"-g path to file containing ensembl ID to gene name mapping, must be given if REMs are given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
+	"-e tab seperated file with ensembl ID gene name mapping of the TFs (must be given if activeTFs file is given)\n"<<
+	"-x path to genome (default /necessaryInputFiles/hg38.fa)\n"
+	"-j rounds sampled background (default 0)\n"
+	"-k path to sorted dbSNP file (if our provided file is used only SNPs in coding regions are considered)\n"
+	"-i path to the source GitHub dir (default .)\n"<<
 	"-l start seed (default 1)\n" <<
-	"-q min TF count which needs to be exceeded to be considered in random sampling (default 0)" << 
+	"-q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)\n" << 
 	"-h help\n"<<
 	"transfac PFM file and bed-like SNP file must be given"<<endl;
 }
