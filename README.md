@@ -72,7 +72,7 @@ chr1    154424939       154424940       G       T       -      0.3
 chr12   111569951       111569952       G       C       rs653178        -1
 ```
 
-If you want to consider a SNP which has multiple alternative alleles like for instance rs11206510 (https://www.ncbi.nlm.nih.gov/snp/rs11206510), please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
+If you want to consider a SNP, which has multiple alternative alleles like for instance [rs11206510](https://www.ncbi.nlm.nih.gov/snp/rs11206510) (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
 
 ```
 chr1    55030365        55030366        A       T       rs11206510      0.1018
