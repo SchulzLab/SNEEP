@@ -52,7 +52,7 @@ The following 3 files are required as minimal input to run SNEEP:
 2)	a bed-like SNP file
 3)	a reference genome file in fasta format
 
-We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt ).  However, ever set of TF motifs can be used instead like from another database (e.g. HOCOMOCO or …) or a different species. 
+We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt ).  However, every set of TF motifs can be used instead, for instance from another database (e.g. HOCOMOCO or Kellis) or a different species. 
 The bed-like SNP file needs is a tab-separated file containing the following entries: 
 -	chr
 -	start position (0-based)
