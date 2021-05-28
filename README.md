@@ -55,8 +55,8 @@ The following 3 files are required as minimal input to run SNEEP:
 We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt ).  However, ever set of TF motifs can be used instead like from another database (e.g. HOCOMOCO or …) or a different species. 
 The bed-like SNP file needs is a tab-separated file containing the following entries: 
 -	chr
--	start
--	end
+-	start position (0-based)
+-	end position (0-based)
 -	var1 (e.g. effector allele or alternative allele) 
 -	var2 (e.g. wild type allele)
 -	rsID if known, otherwise - 
@@ -80,6 +80,7 @@ chr1    55030365        55030366        C       T       rs11206510      0.1018
 chr1    55030365        55030366        G       T       rs11206510      0.1018
 ```
 
+SNEEP can only handle mutations effecting a single base pair (no deletions or insertions).
 
 In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
 
