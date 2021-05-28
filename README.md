@@ -21,7 +21,7 @@ The following overview figure visualizes the various ways how to use our SNEEP a
 
 TODO: create figure
 
-# Building our tool
+# Build our tool
 
 Please make sure that the following software is available on your machine: 
 
@@ -43,6 +43,52 @@ make
 TODO bash script with knitr packages 
 TODO: small test script with all combinations 
 
+
+# Usage 
+
+The following 3 files are required as minimal input to run SNEEP:
+
+1)	a file containing the TF motifs in TRANSFAC format. (see also …) 
+2)	a bed-like SNP file
+3)	a reference genome file in fasta format
+
+We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt ).  However, ever set of TF motifs can be used instead like from another database (e.g. HOCOMOCO or …) or a different species. 
+The bed-like SNP file needs is a tab-separated file containing the following entries: 
+-	chr
+-	start
+-	end
+-	var1 (e.g. effector allele or alternative allele) 
+-	var2 (e.g. wild type allele)
+-	rsID if known, otherwise - 
+-	minor allele frequency (MAF) if known, otherwise -1 (explain why we need MAF)
+
+A properly format SNP files looks as following: 
+
+```
+chr1    109274569       109274570       G       A       rs7528419       0.2009
+chr1    109275907       109275908       C       T       rs646776        0.2384
+chr1    154424939       154424940       G       T       rs12118721      1e-07
+chr1    154424939       154424940       G       T       -      0.3
+chr12   111569951       111569952       G       C       rs653178        -1
+```
+
+If you want to consider a SNP which has multiple alternative alleles like for instance rs11206510 (https://www.ncbi.nlm.nih.gov/snp/rs11206510), please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
+
+```
+chr1    55030365        55030366        A       T       rs11206510      0.1018
+chr1    55030365        55030366        C       T       rs11206510      0.1018
+chr1    55030365        55030366        G       T       rs11206510      0.1018
+```
+
+
+In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
+
+```
+>chr1
+ATCGGGTCA…
+>chr2
+TTTGAGACCAT…
+```
 
 # Small example:
 For the help information type
