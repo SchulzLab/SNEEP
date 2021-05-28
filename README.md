@@ -21,7 +21,10 @@ The following overview figure visualizes the various ways how to use our SNEEP a
 
 TODO: create figure
 
-# Dependencies:
+# Building our tool
+
+Please make sure that the following software is available on your machine: 
+
 - c++11 
 - g++ (9.3.0)
 - python3.x
@@ -30,13 +33,16 @@ TODO: create figure
 - openmp
 - R (4.0.4), ggplot2 library
 
+To install SNEEP,  run the following commands: 
 
-# Compile: 
-To compile our SNEEP code, run the following 
 ```
-cd src/
+cd SNEEP/src/
 make
 ```
+
+TODO bash script with knitr packages 
+TODO: small test script with all combinations 
+
 
 # Small example:
 For the help information type
