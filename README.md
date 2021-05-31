@@ -62,7 +62,7 @@ The bed-like SNP file needs is a tab-separated file containing the following ent
 -	rsID if known, otherwise - 
 -	minor allele frequency (MAF) if known, otherwise -1 (explain why we need MAF)
 
-A properly format SNP files looks as following: 
+A properly formated SNP files looks as following: 
 
 ```
 chr1    109274569       109274570       G       A       rs7528419       0.2009
