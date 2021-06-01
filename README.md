@@ -91,6 +91,55 @@ ATCGGGTCA…
 TTTGAGACCAT…
 ```
 
+## Minimal example: 
+
+To try SNEEP with the minimal required input, make sure you are in the SNEEP folder and run: 
+
+```
+./src/differentialBindingAffinity_multipleSNPs  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file> 
+```
+
+Per default the result is stored in the directory ‘SNEEP_output’. For more details about the result files, see Section … 
+
+## Optional input parameters
+
+To see optional input parameters, type 
+
+```
+./src/differentialBindingAffinity_multipleSNPs  -h
+```
+
+which prints
+
+```
+Call program with ./src/differentialBindingAffinity_multipleSNPs
+
+optinal parameters:
+-o outputDir (default SNEEP_output/, if you want to specific it, it must be done as first argument)
+-n number threads (default 1)
+-p pvalue for motif hits (default 0.05)
+-c pvalue differential binding (default 0.01)
+-b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequence.txt)
+-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt
+-f additional footprint/open chromatin region file in bed file format
+-m if flag is set, the  maximal differential binding affinity per SNP is stored in <outputDir>/MaxDiffBindingAffinity.txt
+-t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID	expression-value)
+-d threshold TF activity (must be given if -t is given)
+-e tab seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)
+-r bed-like file with epigenetic interactions
+-g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)
+-j rounds sampled background (default 0)
+-k path to sorted dbSNP file (if our provided file is used only SNPs in coding regions are considered)
+-i path to the source GitHub dir (default .)
+-l start seed (default 1)
+-q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)
+-h help
+
+transfac PFM file,  bed-like SNP file and path to genome file (fasta format)  must be given
+help function end
+
+```
+
 # Small example:
 For the help information type
 ```
