@@ -125,7 +125,7 @@ optinal parameters:
 -m if flag is set, the  maximal differential binding affinity per SNP is stored in <outputDir>/MaxDiffBindingAffinity.txt
 -t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID	expression-value)
 -d threshold TF activity (must be given if -t is given)
--e tab seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)
+-e tab-seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)
 -r bed-like file with epigenetic interactions
 -g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)
 -j rounds sampled background (default 0)
