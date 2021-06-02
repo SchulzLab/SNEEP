@@ -140,7 +140,7 @@ help function end
 
 ```
 
-# Use SNEEP on an realistic example
+# Use SNEEP on a realistic example
 
 For an realistic example we consider SNPs associated to myocardial infarction (downloaded from the GWAS catalaog) and the corresponding proxy SNPs (determined with SNIPA, R2 value >= 0.8). The following section provides example runs with different combination of optional input parameters. The example data is located in the directory SNEEP/example/. 
 
