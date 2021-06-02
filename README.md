@@ -155,3 +155,17 @@ So, the resulting command is:
 ```
 
 Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
+
+## Example 2: open chromatin regions
+
+...
+
+
+## Example 3: Associate the SNPs, which significantly affect the binding behavior of a TF to their target genes
+
+To associate the target genes, we need to provide a file holding information about epigenetic interactions (flag -e). The data provided via Zenodo repository contains three different epigenetic interaction files (for more detail explanation see …). Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g). 
+
+```
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/ -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed /home/nbaumgarten/hg38.fa
+```
+
