@@ -151,7 +151,7 @@ To do so, we need to set the optional parameters -t, -d and -e. For our example 
 So, the resulting command is: 
 
 ```
-./src/differentialBindingAffinity_multipleSNPs -o SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/ensemblID_geneName_TFs.txt -d 0.5 examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed < path-to-genome-file>
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/ensemblID_geneName_TFs.txt -d 0.5 examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed < path-to-genome-file>
 ```
 
-Note, that we specified the output directory with the -o flag as SNEEP_output_expression/. 
+Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
