@@ -146,7 +146,7 @@ For an realistic example we consider SNPs associated to myocardial infarction (d
 
 ## Example 1: only consider TFs expressed in the cell type or tissue of interest
 
-To do so, you need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardio myocytes. Additionally, we provide the file containing the mapping between ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file (…). As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value which is most suitable for you.
+To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardio myocytes. Additionally, we provide the file containing the mapping between ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file (…). As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value which is most suitable for you.
 
 So, the resulting command is: 
 
