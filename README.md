@@ -140,18 +140,18 @@ help function end
 
 ```
 
-# Small example:
-For the help information type
+# Use SNEEP on an realistic example
+
+For an realistic example we consider SNPs associated to myocardial infarction (downloaded from the GWAS catalaog) and the corresponding proxy SNPs (determined with SNIPA, R2 value >= 0.8). The following section provides example runs with different combination of optional input parameters. The example data is located in the directory SNEEP/example/. 
+
+## Example 1: only consider TFs expressed in the cell type or tissue of interest
+
+To do so you need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardio myocytes. Additionally, we provide the file containing the mapping between ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file (…). As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value which is most suitable for you.
+
+So, the resulting command is: 
+
 ```
-./src/differentialBindingAffinity_multipleSNPs -h
+./src/differentialBindingAffinity_multipleSNPs -o SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/ensemblID_geneName_TFs.txt -d 0.5 examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed < path-to-genome-file>
 ```
 
-To run a small example, perform the following command
-```
- ./src/differentialBindingAffinity_multipleSNPs -o test/ -r necessaryInputFiles/REMAnnotationModelScore_1.csv -g necessaryInputFiles/REMsEnsemblIDs_geneName.txt  necessaryInputFiles/JASPAR2020_HUMAN_transfac_P0.txt  examples/someSNPs.txt 
- ```
-# TODOs: 
-- add REMannotation file and hg38.fa to necessaryInputFiles
- 
-
-
+Note, that we specified the output directory with the -o flag. 
