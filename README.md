@@ -119,7 +119,7 @@ optinal parameters:
 -n number threads (default 1)
 -p pvalue for motif hits (default 0.05)
 -c pvalue differential binding (default 0.01)
--b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequence.txt)
+-b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequency.txt)
 -a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt
 -f additional footprint/open chromatin region file in bed file format
 -m if flag is set, the  maximal differential binding affinity per SNP is stored in <outputDir>/MaxDiffBindingAffinity.txt
