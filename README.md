@@ -159,12 +159,29 @@ Note, that we specified the output directory with the -o flag as examples/SNEEP_
 
 ## Example 2: open chromatin regions
 
-...
+If open chromatin data of your cell type of interest is available, it is possible to integrate this data and automatically exclude SNPs from the analysis in closed, most likely inactive chromatin regions. 
+Therefore, a bed-file holding the open chromatin regions can be specified using the flag -f. 
 
+For our example, we want to use an ATAC-seq on human heart right ventricle from ENCODE. 
+
+To download the data run: 
+
+```
+wget ‘https://www.encodeproject.org/files/ENCFF199VHV/@@download/ENCFF199VHV.bed.gz’
+```
+
+Next unzip the file via gunzip.
+
+The resulting SNEEP call is 
+
+```
+./src/differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/ -f <path-to-ENCODE-data> examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+```
 
 ## Example 3: Associate the SNPs, which significantly affect the binding behavior of a TF to their target genes
 
-To associate the target genes, we need to provide a file holding information about epigenetic interactions (flag -e). The data provided via Zenodo repository contains three different epigenetic interaction files (for more detail explanation see …). Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g). 
+To associate the target genes, we need to provide a file holding information about epigenetic interactions (flag -e). We provide this data via a Zenodo repository which contains three different epigenetic interaction files (for more detail explanation see …). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
+ 
 
 ```
 ./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/ -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed /home/nbaumgarten/hg38.fa
