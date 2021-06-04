@@ -184,6 +184,18 @@ To associate the target genes, we need to provide a file holding information abo
  
 
 ```
-./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/ -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed /home/nbaumgarten/hg38.fa
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/ -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
 ```
 
+## Example 4: Compute a proper random background control and highlight the biologically interesting results 
+
+To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample 100 background rounds, meaning set -j to 100. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (for more information, see …), which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seed for runs with different input SNPs. The flag -q is used to speed up the background sampling by exclude TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
+Further we recommend running SNEEP in the parallel mode by specifying the number of threads via the -n flag. 
+
+A possible SNEEP run with background sampling can look as following: 
+
+```
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -n 20 -j 100 -k ../dbSNP/dbSNPs_sorted.txt -l 2 -q 0 -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+```
+
+Note, that we also associated the SNPs to their potential target genes (as shown in example 3).
