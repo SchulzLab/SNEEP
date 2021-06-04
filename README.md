@@ -42,7 +42,7 @@ make
 
 TODO bash script with knitr packages 
 TODO: small test script with all combinations 
-
+TODO: download zenodo repository and explain files 
 
 # Usage 
 
@@ -216,3 +216,8 @@ So, for our current example we run the following:
 Rscript  src/builtPDF.R <absolute-path>/SNEEP/examples/SNEEP_output_background_sampling/ 100 4  src/
 ```
 
+The resulting summary pdf is called summaryReport.pdf, can be found in the SNEEP output directory. So, in our case examples/SNEEP_output_background_sampling/ directory.
+
+# Detailed explanation of the output files 
+
+TODO: ...
