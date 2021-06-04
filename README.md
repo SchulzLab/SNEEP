@@ -144,6 +144,7 @@ help function end
 
 
 For an realistic example we consider SNPs associated to myocardial infarction (downloaded from the [GWAS catalog](https://www.ebi.ac.uk/gwas/efotraits/EFO_0000612) and the corresponding proxy SNPs (determined with [SNiPA](https://snipa.helmholtz-muenchen.de/snipa3/index.php?task=proxy_search), R2 value >= 0.8). The following section provides example runs with different combination of optional input parameters. The example data is located in the directory SNEEP/example/. The default parameters (SNP-file, motif file and human genome file) are the once we already used in the minimal example. Make sure you are located in the SNEEP main folder (SNEEP/).
+Notice, that the optional parameters can be combined in any way, not only in the ways shown in the following examples.
 
 ## Example 1: only consider TFs expressed in the cell type or tissue of interest
 
@@ -216,7 +217,7 @@ So, for our current example we run the following:
 Rscript  src/builtPDF.R <absolute-path>/SNEEP/examples/SNEEP_output_background_sampling/ 100 4  src/
 ```
 
-The resulting summary pdf is called summaryReport.pdf, can be found in the SNEEP output directory. So, in our case examples/SNEEP_output_background_sampling/ directory.
+The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory. So, in our case examples/SNEEP_output_background_sampling/ directory.
 
 # Detailed explanation of the output files 
 
