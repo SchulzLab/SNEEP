@@ -1,0 +1,370 @@
+
+---
+title: "SNEEP: SNP Exploration and Analysis using epigenomics data"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+ rounds: 100
+ resultFile: result.txt
+ TFcountFile: TF_count.txt
+ infoFile: info.txt
+ minTFCount: 0
+header-includes:
+ \usepackage{booktabs}
+ \usepackage{longtable}
+ \usepackage{array}
+ \usepackage{multirow}
+ \usepackage{wrapfig}
+ \usepackage{float}
+ \usepackage{colortbl}
+ \usepackage{pdflscape}
+ \usepackage{tabu}
+ \usepackage{threeparttable}
+ \usepackage{threeparttablex}
+ \usepackage[normalem]{ulem}
+ \usepackage{makecell}
+ \usepackage{xcolor}
+---
+
+
+```{r, echo = FALSE}
+library(stringi)
+library(plyr)
+#data  <- read.delim("../Kessler_SNP_Analysis/SNP_analysis_3_april/result.txt", header = TRUE, sep = "\t") # read data
+data  <- read.delim(params$resultFile, header = TRUE, sep = "\t") # read data
+#TF_counts <- read.delim("../Kessler_SNP_Analysis/SNP_analysis_3_april/sampling/TF_count.txt", header = TRUE, row.names = 1, sep = "\t")
+TF_counts <- read.delim(params$TFcountFile, header = TRUE, row.names = 1, sep = "\t")
+con = file(params$infoFile, "r")
+numberRounds = as.double(params$rounds) #number rounds of background sampling 
+
+###
+## Step1: determine significant TFs
+###
+
+TF_names = colnames(TF_counts) #store TFs name
+realData = TF_counts[1,] #extract real data
+colnames(realData) = TF_names # adds TF name to real data 
+TF_counts = TF_counts[-1,] #remove real data from TF_counts 
+numTFs = length(TF_names)
+
+#determine probability to observe 
+sig_TFs = data.frame(matrix(0L, nrow = numTFs, ncol = 4))
+rownames(sig_TFs) = TF_names 
+colnames(sig_TFs) = c("TF", "observed", "sampled", "pvalues")
+
+#TODO: hier müsste man eigentlich den pWert korrigieren, aber macht das sinn wenn der kleinst möglich pwert 0.01 ist??
+for (value in TF_names){
+	count <- as.double(realData[value])
+	sampledCount = colSums(TF_counts[value] >= count) #count sampled TF hits higher than or equal than the observed ones
+	sig_TFs[value, "TF"] = value
+	sig_TFs[value, "pvalues"] = (sampledCount/numberRounds) #determine pvalue based on line above 
+	sig_TFs[value, "observed"] = count
+	sig_TFs[value, "sampled"] = sampledCount
+}
+
+sig_TFs = subset(sig_TFs, pvalues <=0.05)
+sig_TFs = subset(sig_TFs, observed >as.double(params$minTFCount)) #exclude observed TFs with low general count
+#sig_TFs = subset(sig_TFs, pvalues <=0.1)
+sig_TFs = sig_TFs[order(sig_TFs$pvalues),]
+#print(sig_TFs)
+num_sig_TFs = nrow(sig_TFs)
+#print(num_sig_TFs)
+associatedTFs = FALSE
+if (num_sig_TFs != 0){
+	associatedTFs = TRUE
+}
+
+associatedGenes = FALSE
+
+###
+## Step 2: determine if TFs are associated to significant gain or loss
+###
+
+if (associatedTFs == TRUE){
+	entries = data.frame(matrix(0L, nrow = num_sig_TFs, ncol = 5)) #initalize matrix with 0
+	names_sig_TFs = rownames(sig_TFs)
+	rownames(entries) = names_sig_TFs
+	colnames(entries) = c("TF", "gain", "loss", "pvaluesBinomial", "function")
+	TFs = data$TF
+	log_diffBind = data$log_pvalueBindAffVar1_pvalueBindAffVar2
+
+	#fill dictionary
+	for (i in 1:length(TFs)){
+		TF = TFs[i]
+		TF = gsub('[\\(\\):-]', '.', TF) #replace ():- to . (default behavoir of R for stirngs)
+		if (TF %in% rownames(sig_TFs)){
+			entries[TF, "TF"] = TF
+			if (as.double(log_diffBind[i]) > 0.0){
+				entries[TF,'gain'] = entries[TF, 'gain'] + 1
+			}else{
+				entries[TF,'loss'] = entries[TF, 'loss'] + 1
+			}
+		}
+	}	
+	#apply  binomial test to determine significance
+	totalTrails = entries[, 'loss'] +  entries[, 'gain']
+	successes = entries[, 'gain']
+	pvaluesBinomial = c()
+	for (i in 1:num_sig_TFs){
+		TF = names_sig_TFs[i]
+		binomialResult = binom.test(x = successes[i], n = totalTrails[i], p = 0.5, alternative = "two.sided", conf.level = 0.95)
+		entries[TF, "pvaluesBinomial"] = c(pvaluesBinomial, binomialResult$p.value)
+	#	print(binomialResult$p.value)
+	        if (entries[TF, 'loss'] < entries[TF, 'gain']){
+                        entries[TF,"function"] =  "gain"
+	        }
+	        if (entries[TF, 'gain'] < entries[TF, 'loss']){
+                        entries[TF,"function"] =  "loss"
+	        }
+	        if (entries[TF, 'loss'] == entries[TF, 'gain']){
+                        entries[TF,"function"] =  "equal"
+       		}	
+	}
+	entries = entries[order(entries$pvaluesBinomial),] # sort according to pvalue
+	#print(entries)
+
+	###
+	## Step 3: determine associated genes
+	## Step 4: determine associated REMs, regions or promoters
+	###
+
+	#initialze data structures
+	genes = data.frame(matrix(ncol = 5))
+	colnames(genes) = c("gene", "ensemblID", "TFs", "SNPs", "numberREMs")
+	gene_TFs = data.frame(matrix(ncol = 4))
+	colnames(gene_TFs) = c("ensemblID", "TF", "SNP", "REM")
+
+	REMs = data.frame(matrix(ncol = 6))
+	colnames(REMs) = c("regionID", "length", "gene", "ensemblID", "TFs", "SNPs")
+	REM_TFs = data.frame(matrix(ncol = 3))
+	colnames(REM_TFs) = c("REMID", "TF", "SNP")
+	
+	#iterate over data.frame data
+	for (row in 1:nrow(data)){
+
+		TF = data[row, "TF"] #get current TF
+		TF = gsub('[\\(\\):-]', '.', TF) #replace ():- to . (default behavoir of R for stirngs)
+		if (TF %in% names_sig_TFs){ #test if TF is one of the significant ones
+			#store gene info
+			splitGenes = matrix(unlist(strsplit(data[row, "geneNames"], ','))) #split entries must be a matrix otherwise iterating did not work 
+			splitGeneIDs = matrix(unlist(strsplit(data[row, "ensemblIDs"], ',')))
+			#store REM info
+			splitREMIDs = matrix(unlist(strsplit(data[row, "REMIds"], ',')))
+			splitREMPos = matrix(unlist(strsplit(data[row, "REM_positions"], ',')))
+	
+			counter = 1
+			uniqGenes = c()
+			uniqREMs = c()
+			for (e in splitGeneIDs){
+        	       	 	if (!(e[1] == ".")){ #skip row where no gene is associated -> also no REM associated
+					#gene info
+					if (!(e %in% uniqGenes)){
+						associatedGenes = TRUE
+						genes[nrow(genes) +1,] = c(splitGenes[counter], e, "", "", "")
+						gene_TFs[nrow(gene_TFs) +1, ] = c(e, TF, data[row, "rsID"], data[row, "REMIds"])
+						uniqGenes = cbind(uniqGenes, e)
+					}
+				
+					#REM info
+					split = strsplit(splitREMPos[counter], ":")
+					r = strsplit(split[[1]][2], "-")
+					length = as.double(r[[1]][2]) - as.double(r[[1]][1])
+					REMs[nrow(REMs) +1,] = c(splitREMIDs[counter], length, splitGenes[counter], e, "" , "")
+					REM_TFs[nrow(REM_TFs) + 1, ] = c(splitREMIDs[counter], TF, data[row, "rsID"])
+				}
+				counter = counter + 1
+			}
+		}
+	}
+}
+#genes
+if (associatedGenes == TRUE){ #there are  associated genes otherwise skip this
+	genes = genes[-1,] #remove first row (contains only NAs)
+	genes = ddply(genes,.(gene, ensemblID, TFs, SNPs, numberREMs),nrow) #determine how often a gene occurs
+	rownames(genes) = genes$ensemblID
+	gene_TFs = gene_TFs[-1,] #remove first row (contains only NAs)
+	gene_TFs = gene_TFs[order(gene_TFs$ensemblID),]
+
+	#add which TFs and SNPs are associated to the genes 
+	previous_gene = ""
+	helper = ""
+	helper2 = ""
+	counter = 0
+	differentREMs = c()
+	for (row in 1:nrow(gene_TFs)){
+		gene = gene_TFs[row, "ensemblID"]
+		#print(gene)
+		if (gene == previous_gene || previous_gene == ""){
+			helper = paste0(helper, '\n', gene_TFs[row, "TF"])
+			helper2 = paste0(helper2, '\n', gene_TFs[row, "SNP"])
+			
+			splitREMIDs = matrix(unlist(strsplit(gene_TFs[row, "REM"], ',')))
+			for (e in splitREMIDs){
+				if (!(e %in% differentREMs)){
+					counter = counter + 1
+					differentREMs = c(differentREMs, e)
+					#differentREMs = c(differentREMs, egene_TFs[row, "REM"])
+				}
+			}
+			previous_gene = gene
+		}else{		
+			helper = sub('.', '', helper) #remove first ,
+			helper2 = sub('.', '', helper2) #remove first ,
+			genes[previous_gene, "TFs"] = helper
+			genes[previous_gene, "SNPs"] = helper2
+			genes[previous_gene, "numberREMs"] = counter
+			previous_gene = gene
+			helper = paste0('\n',gene_TFs[row, "TF"])
+			helper2 = paste0('\n',gene_TFs[row, "SNP"])
+			#differentREMs = c(gene_TFs[row, "REM"])
+			differentREMs = c()
+			splitREMIDs = matrix(unlist(strsplit(gene_TFs[row, "REM"], ',')))
+			counter = 0
+			for (e in splitREMIDs){
+				if (!(e %in% differentREMs)){
+					counter = counter + 1
+					differentREMs = c(differentREMs, e)
+				}
+			}
+		}
+	}
+	#add info for last gene
+	helper = sub('.', '', helper) #remove first , 
+	helper2 = sub('.', '', helper2) #remove first , 
+	genes[previous_gene, "TFs"] = helper
+	genes[previous_gene, "SNPs"] = helper2
+	genes[previous_gene, "numberREMs"] = counter
+	colnames(genes) = c("gene", "ensemblID", "TFs","SNPs", "numberREMs","frequence")
+	genes = genes[order(-genes$frequence),]
+	#print(genes)
+
+	#REMs
+	REMs = REMs[-1,] #remove first line (contains only NAs)
+	REMs = ddply(REMs,.(regionID, length, gene, ensemblID, TFs, SNPs),nrow) #determine how often a REM occurs
+	rownames(REMs) = REMs$regionID
+	#print(REMs)
+	REM_TFs = REM_TFs[-1,]
+	REM_TFs = REM_TFs[order(REM_TFs$REMID),]
+
+	#add which TFs and SNPs are associated to the REMs 
+	previous_REM = ""
+	helper = ""
+	helper2 = ""
+	for (row in 1:nrow(REM_TFs)){
+		REM = REM_TFs[row, "REMID"]
+		if (REM == previous_REM || previous_REM == ""){
+			helper = paste0(helper, '\n', REM_TFs[row, "TF"])
+			helper2 = paste0(helper2, '\n', REM_TFs[row, "SNP"])
+			previous_REM = REM
+		}else{		
+			helper = sub('.', '', helper) #remove first ,
+			helper2 = sub('.', '', helper2) #remove first ,
+			REMs[previous_REM, "TFs"] = helper
+			REMs[previous_REM, "SNPs"] = helper2
+			previous_REM = REM
+			helper = paste0('\n',REM_TFs[row, "TF"])
+			helper2 = paste0('\n',REM_TFs[row, "SNP"])
+		}
+	}
+	#add info for last REM
+	helper = sub('.', '', helper) #remove first , 
+	helper2 = sub('.', '', helper2) #remove first , 
+	REMs[previous_REM, "TFs"] = helper
+	REMs[previous_REM, "SNPs"] = helper2
+	colnames(REMs) =  c("regionID", "length", "gene", "ensemblID", "TFs", "SNPs", "frequence")
+	REMs = REMs[order(-REMs$frequence),]
+	#print(REMs)
+	allREMs = REMs
+	REMs = subset(REMs, frequence >=2) #only show rems associatedd to more than 1 SNP
+	associatedREMs = FALSE
+	if (nrow(REMs) != 0){
+		associatedREMs = TRUE
+	}
+	
+	
+}
+
+###
+## Step 5: determine info from info file
+###
+
+info1 = c() # date and time, -o outputDir,-p p-value threshold motifHits, -c p-value threshold diffBindAff, -b file of background freq, -f footprint/region file, -m maxOutput, -t activeTFs, -r REMs, -a allDiffBindAffinities, -n number threads, -e ensemblID geneName mapping TFs, -d threshold TF activity, -i path to the source dir, -g EnsemblID to GeneName mapping REMs, -x path to genome, -j rounds of background sampling, -k path to dbSNPs, -l start seed for random sampling, PFMs, SNPs file, info file
+info2 = c() # numSNPSInputFile, numRemovedDuplicates, overlapPeak, overlapREMAll
+countInfo1 = c()
+countInfo2 = c()
+
+while (TRUE){
+        line = readLines(con, n = 1)
+        if ( length(line) == 0 ) {
+                break
+        }
+        if (stri_isempty(line)){
+        #       print("empty line")
+                counter = 1
+        }else if (substring(line, 1, 1) == "#"){
+                h1 = strsplit(line, ': ')
+                info1 = c(info1, substring(h1[[1]][1],3))
+                info2 = c(info2, h1[[1]][2])
+                #info = paste(info , substring(line, 2) , sep = '\n') 
+        }else if (substring(line, 1, 1) == "!"){
+                h1 = strsplit(line, ': ')
+                countInfo1 = c(countInfo1, substring(h1[[1]][1],3))
+                countInfo2 = c(countInfo2, h1[[1]][2])
+        }else{
+                break
+        }
+
+}
+close(con)
+info = data.frame(flags = info1, input = info2)
+#print(info)
+countInfo = data.frame(flags = countInfo1, input = countInfo2) #TODO:add info to output file and plot as table 
+#print(countInfo)
+```
+To allow an easy and fast interpretation of the result of SNEEP, we provide in the following several plots and tables,
+summarizing the most important observations/information of your analysis.
+
+# Overview of the analysis
+
+In total the SNP input file contained `r countInfo[1,]$input[[1]]` SNPs.
+Out of these, `r countInfo[2,]$input[[1]]` are duplicated ones and/or InDels, which we cannot handle.
+`r if(countInfo[3,]$input[[1]] != "-"){paste0(countInfo[3,]$input[[1]], " SNPs overlaps with the given peaks. Only these SNPs were considered in the analysis.")}`
+Overall for `r countInfo[6,]$input[[1]]` SNPs a significant change in the binding affinity of at least one TF was observed.
+Out of the SNPs with a significant effect on the binding affinity, `r countInfo[5,]$input[[1]]` are overlapping with at least one promoter sequence, regulatory element (REM) or HiC region.
+`r countInfo[7,]$input[[1]]` different TF binding motifs are used for the analysis.
+
+In section Appendix Table \@ref(tab:summaryInput) summarizes all used input parameters. 
+
+# Identification and analysis of the most influenced TFs
+
+In order to identify TFs which’s binding sites are most often affected by the analyzed SNPs and simultaneously take into account that TF binding hits can be observed by chance, SNEEP conducts a background SNP sampling. 
+
+We perform `r info[17,]$input[[1]]` rounds, where randomly as many SNPs as given in the SNP set are sampled. 
+Thereby, we retain the original minor allele frequency. 
+Next, we apply SNEEP to each of these randomly sampled SNP sets and count for each TF significant binding hits. 
+Based on these counts we are able to calculate a p-value. 
+We determine for how many of the sampled rounds, a higher or equal number of binding hits for a given TF in comparison to the original SNP set was observed and divide this count by the total number of background rounds.
+
+
+```{r conditional_print, child = 'TFs.Rmd', eval = associatedTFs, echo=FALSE}
+```
+
+`r if(associatedTFs == FALSE){"Unfortunately, we were not able to identify TFs with a significant p-value."}`
+
+
+# Association of SNPs to their target genes
+
+```{r conditional_print, child = 'genesAndREMs.Rmd', eval = associatedGenes, echo=FALSE}
+```
+`r if(associatedGenes == FALSE){"Unfortunately, we were not able to link genes and REMs to your SNPs."}`
+
+# APPENDIX
+
+In Table \@ref(tab:summaryInput) the used input parameters are shown. 
+
+```{r, echo = FALSE}
+	opts <- options(knitr.kable.NA = "-")
+	knitr::kable(x = info, format = "latex",longtable = T, booktabs = T,col.names = c("settings","general info and input files"), align = "ll", linesep = "", caption = "Summary of the input parameters.", label = "summaryInput") %>%
+	kable_styling(font_size = 8, latex_options = c("striped", "repeat_header")) %>%
+	column_spec(1, width = "3cm")%>%
+	column_spec(2, width = "13cm")
+```

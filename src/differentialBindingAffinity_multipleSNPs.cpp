@@ -63,7 +63,12 @@ int main(int argc, char *argv[]){
 
 	//handle input 
 	InOutput io; //create object
-	io.parseInputPara(argc, argv); //set all paths according to input 
+	try{
+		io.parseInputPara(argc, argv); //set all paths according to input 
+	} catch (exception& e){
+		cout << e.what() << endl;
+		return (0);
+	}
 
 	//create instance bashCommand
 	BashCommand bc(io.getGenome()); //constructor bashcommand class

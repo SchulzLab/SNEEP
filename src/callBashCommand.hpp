@@ -106,7 +106,7 @@ void BashCommand::callPythonScriptSplitSEMs(string sourceDir, string TransfacPFM
 }
 */
 void BashCommand::rm(string dir){
-	string command = "rm " + dir + "/*";
+	string command = "rm -f " + dir + "/*";
 	system(command.c_str());
 	return;
 }

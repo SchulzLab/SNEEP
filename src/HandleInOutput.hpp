@@ -75,10 +75,10 @@ class InOutput{
 	double pvalue = 0.05; //-p	
 	double pvalue_diff = 0.01; //-c
 	//string frequence = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/project_Luxembourg/frequence.txt"; //-b
-	string frequence = "necessaryInputFiles/frequence.txt"; //-b
+	string frequence = "necessaryInputFiles/frequency.txt"; //-b
 	//string mutatedSequences = ""; //-s
 	string footprint = ""; //-f path to footprint file
-	string outputDir = "DifferentialBindingOutput/"; //-o
+	string outputDir = "SNEEP_output/"; //-o
 	string allOutput =  ""; //-d 
 	string maxOutput =  ""; // -m
 	//new
@@ -102,7 +102,7 @@ class InOutput{
 	string sourceDir = "./";
 	//string genome = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/hg38.fa";
 	//string genome = "/home/nbaumgarten/hg38.fa";
-	string genome = "necessaryInputFiles/hg38.fa";
+	string genome = "";
 	int samplingRounds = 0;
 	//string codingRegions = "";
 	int consideredSNPs  = 0;
@@ -125,7 +125,7 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:saf:mt:r:e:d:i:g:x:j:k:l:q:h")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:saf:mt:r:e:d:i:g:j:k:l:q:h")) != -1) {
        		switch (opt) {
 		case 'o':
 			outputDir = optarg;
@@ -145,7 +145,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			break;
 		case 'b':
 			frequence = optarg;
-			cout << "-b frequence: " << frequence << endl;
+			cout << "-b frequency: " << frequence << endl;
 			break;
 	//	case 's':
 	//		mutatedSequences = outputDir + "mutatedSequences.txt";
@@ -191,10 +191,10 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			seed = stoi(optarg);
 			cout << "-l seed: " << seed << endl;
 			break;
-		case 'x':
-			genome = optarg;
-			cout << "-x path to genome: " << genome << endl;
-			break;
+//		case 'x':
+//			genome = optarg;
+//			cout << "-x path to genome: " << genome << endl;
+//			break;
 		case 'j':
 			samplingRounds = stoi(optarg);
 			cout << "-j number of randmoly sampled backgrounds: " << samplingRounds << endl;
@@ -209,7 +209,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			break;
 		case 'h':
 			callHelp();
-			throw invalid_argument("called help function"); 
+			throw invalid_argument("help function end"); 
 			//break;
 
 		default:
@@ -236,8 +236,8 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	if (samplingRounds > 0){
 		backgroundSeq = outputDir + "backgroundSequences.bed";
 	}
-	if (optind + 2 > argc)  // there should be 2 more non-option arguments
-		throw invalid_argument("missing motif_dir, snp_file"); // TODO: besser in motif file umwandeln
+	if (optind + 3 > argc)  // there should be 3 more non-option arguments
+		throw invalid_argument("missing motif file in TRANSFAC format, bed-like SNP file and/or genome file"); // TODO: besser in motif file umwandeln
 
 	PFMs = argv[optind++];
 	cout <<"PFM dir: " << PFMs << endl;
@@ -245,6 +245,8 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	snpsNotUnique = argv[optind++];
 	snps = outputDir + "SNPsUnique.bed";
 	cout <<"SNP file: " << snpsNotUnique << endl;
+	genome = argv[optind++];
+	cout << "genome file: " << genome << endl;
 }
 
 
@@ -270,13 +272,13 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-d threshold TF activity: " << io.thresholdTFActivity <<
 	"\n#\t-i path to the source dir (SNEEP gitHub Repository): " << io.sourceDir <<
 	"\n#\t-g EnsemblID to GeneName mapping REMs: " << io.mappingGeneNames << 
-	"\n#\t-x path to genome: " << io.genome <<
 	"\n#\t-j rounds of background sampling: " << io.samplingRounds <<
 	"\n#\t-k path to dbSNPs: " << io.dbSNPs <<
 	"\n#\t-l start seed for random sampling: " << io.seed <<
 	"\n#\t-q min TF count: " << io.minTFCount << 
 	"\n#\tPFMs: " << io.PFMs << 
 	"\n#\tSNPs file: " << io.snpsNotUnique << 
+	"\n#\tpath to genome: " << io.genome <<
 	"\n#\tinfo file: " << io.info;
 	return os;
 }
@@ -440,7 +442,7 @@ int InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		info_ << "!\toverlapPeak: -\n"; //info file
 	}
 	consideredSNPs = counterOverlappingPeaks;
-	cout << "peaks considered: " << consideredSNPs << endl;
+//	cout << "peaks considered: " << consideredSNPs << endl;
 
 	if (getREMs() != ""){
 		info_ << "!\toverlapREMAllSNPs: " << counterOverlappingREMs << '\n';
@@ -469,27 +471,27 @@ string InOutput::getToken(string& line, char delim){
 void InOutput::callHelp(){
 
 	cout << "Call program with ./src/differentialBindingAffinity_multipleSNPs\noptinal parameters:\n" << 
-	"-o outputDir (default DifferentialBindingOutput/, if you want to specific it, it must be done as first argument)\n" <<
-	"-n number threads (default 1)\n-p pvalue for motif hits (default 0.05)\n"<<
+	"-o outputDir (default SNEEP_output/, if you want to specific it, it must be done as first argument)\n" <<
+	"-n number threads (default 1)\n" <<
+	"-p pvalue for motif hits (default 0.05)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
-	"-b frequence (/necessaryInputFiles/frequence.txt)\n" <<
+	"-b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequency.txt)\n" <<
 	//"-s file where all mutated sequences can be stored\n" <<
-	"-a if flag is set,  all computed differential bindinding affinities are stored in outputDir/AllDiffBindAffinity.txt\n"<<
-	"-f additional footprint/open chromatin region file\n" <<
-	"-m if flag is set, the  maxDiffBindAffinity is stored in outputDir/MaxDiffBindingAffinity.txt\n"<<
-	"-t additional file where activeTFs are stored (e.g RNA-seq or expression data in a tab-seperated format e.g. ensemblID\texpression-value)\n" <<
+	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
+	"-f additional footprint/open chromatin region file in bed file format\n" <<
+	"-m if flag is set, the  maximal differential binding affinity per SNP is stored in <outputDir>/MaxDiffBindingAffinity.txt\n"<<
+	"-t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID\texpression-value)\n" <<
 	"-d threshold TF activity (must be given if -t is given)\n"<<
-	"-r additional, bed-like REMs file\n"<<
-	"-g path to file containing ensembl ID to gene name mapping, must be given if REMs are given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
-	"-e tab seperated file with ensembl ID gene name mapping of the TFs (must be given if activeTFs file is given)\n"<<
-	"-x path to genome (default /necessaryInputFiles/hg38.fa)\n"
+	"-e tab-seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)\n"<<
+	"-r bed-like file with epigenetic interactions\n"<<
+	"-g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
 	"-j rounds sampled background (default 0)\n"
 	"-k path to sorted dbSNP file (if our provided file is used only SNPs in coding regions are considered)\n"
 	"-i path to the source GitHub dir (default .)\n"<<
 	"-l start seed (default 1)\n" <<
 	"-q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)\n" << 
 	"-h help\n"<<
-	"transfac PFM file and bed-like SNP file must be given"<<endl;
+	"transfac PFM file,  bed-like SNP file and path to genome file (fasta format)  must be given"<<endl;
 }
 
 int InOutput::CountEntriesFirstLine(string inputFile, char delim){
