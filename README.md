@@ -144,11 +144,12 @@ help function end
 
 
 For an realistic example we consider SNPs associated to myocardial infarction (downloaded from the [GWAS catalog](https://www.ebi.ac.uk/gwas/efotraits/EFO_0000612)) and the corresponding proxy SNPs (determined with [SNiPA](https://snipa.helmholtz-muenchen.de/snipa3/index.php?task=proxy_search), R2 value >= 0.8). The following section provides example runs with different combination of optional input parameters. The example data is located in the directory SNEEP/example/. The default parameters (SNP-file, motif file and human genome file) are the once we already used in the minimal example. Make sure you are located in the SNEEP main folder (SNEEP/).
+
 Notice, that the optional parameters can be combined in any way, not only in the ways shown in the following examples.
 
-## Example 1: only consider TFs expressed in the cell type or tissue of interest
+## Example 1: Consider only TFs expressed in the cell type or tissue of interest
 
-To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardio myocytes. Additionally, we provide the file containing the mapping between ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file (…). As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value which is most suitable for you.
+To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardio myocytes. Additionally, we provide the file containing the mapping between ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file. As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value which is most suitable for you.
 
 So, the resulting command is: 
 
@@ -158,7 +159,7 @@ So, the resulting command is:
 
 Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
 
-## Example 2: open chromatin regions
+## Example 2: Add open chromatin regions of the cell type of interest
 
 If open chromatin data of your cell type of interest is available, it is possible to integrate this data and automatically exclude SNPs from the analysis in closed, most likely inactive chromatin regions. 
 Therefore, a bed-file holding the open chromatin regions can be specified using the flag -f. 
@@ -176,12 +177,12 @@ Next unzip the file via gunzip.
 The resulting SNEEP call is 
 
 ```
-./src/differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/ -f <path-to-ENCODE-data> examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+./src/differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/ -f <path-to-ENCODE-data/ENCFF199VHV.bed> examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
 ```
 
 ## Example 3: Associate the SNPs, which significantly affect the binding behavior of a TF to their target genes
 
-To associate the target genes, we need to provide a file holding information about epigenetic interactions (flag -e). We provide this data via a Zenodo repository which contains three different epigenetic interaction files (for more detail explanation see …). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
+To associate the target genes, we need to specify a file holding information about epigenetic interactions (flag -e). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see …). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
  
 
 ```
@@ -205,19 +206,19 @@ To visualize the biologically interesting results, we generate a summary file vi
 In this summary information about TFs, which are associated to a change in the binding affinity caused by a SNP more often than expected, are presented. 
 To generate the summary file, we provide the Rscript builtPDF.R. As input the 
 
--	absolut path to the SNEEP_output directory
--	number of sampled background rounds
--	number of significant changes in the binding affinity a TF must exceed to be considered in the summary file 
--	the path the source folder (SNEEP/src/) 
+-	absolut path to the SNEEP_output directory,
+-	number of sampled background rounds,
+-	number of significant changes in the binding affinity a TF must exceed to be considered in the summary file,
+-	and the path the source folder (SNEEP/src/) 
 
 must be given.
-So, for our current example we run the following:
+So for our current example, we run the following:
 
 ```
 Rscript  src/builtPDF.R <absolute-path>/SNEEP/examples/SNEEP_output_background_sampling/ 100 4  src/
 ```
 
-The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory. So, in our case examples/SNEEP_output_background_sampling/ directory.
+The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory, hence in our case in the  examples/SNEEP_output_background_sampling/ directory.
 
 # Detailed explanation of the output files 
 
