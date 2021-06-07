@@ -48,19 +48,19 @@ TODO: download zenodo repository and explain files
 
 The following 3 files are required as minimal input to run SNEEP:
 
-1)	a file containing the TF motifs in TRANSFAC format. (see also …) 
-2)	a bed-like SNP file
-3)	a reference genome file in fasta format
+1)	a file containing the TF motifs in TRANSFAC format,
+2)	a bed-like SNP file,
+3)	a reference genome file in fasta format.
 
-We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt ).  However, every set of TF motifs can be used instead, for instance from another database (e.g. HOCOMOCO or Kellis) or a different species. 
-The bed-like SNP file needs is a tab-separated file containing the following entries: 
--	chr
--	start position (0-based)
--	end position (0-based)
--	var1 (e.g. effector allele or alternative allele) 
--	var2 (e.g. wild type allele)
--	rsID if known, otherwise - 
--	minor allele frequency (MAF) if known, otherwise -1 (explain why we need MAF)
+We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt).  However, every set of TF motifs can be used instead, for instance from another database (e.g. HOCOMOCO or Kellis) or a different species. 
+The required bed-like SNP file is a tab-separated file containing the following entries: 
+-	chr,
+-	start position (0-based),
+-	end position (0-based),
+-	var1 (e.g. effector allele or alternative allele) ,
+-	var2 (e.g. wild type allele),
+-	rsID if known, otherwise - ,
+-	minor allele frequency (MAF) if known, otherwise -1 (TODO: explain why we need MAF).
 
 A properly formated SNP files looks as following: 
 
@@ -80,7 +80,7 @@ chr1    55030365        55030366        C       T       rs11206510      0.1018
 chr1    55030365        55030366        G       T       rs11206510      0.1018
 ```
 
-SNEEP can only handle mutations effecting a single base pair (no deletions or insertions).
+SNEEP can only handle mutations effecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Also duplicated entries are only considered once.
 
 In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
 
