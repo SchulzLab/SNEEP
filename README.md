@@ -40,9 +40,40 @@ cd SNEEP/src/
 make
 ```
 
-TODO bash script with knitr packages 
-TODO: small test script with all combinations 
-TODO: download zenodo repository and explain files 
+# Download Zenodo repository
+Additionally, to the GitHub repository, which contains the source code and small example files, we created a Zenodo repository. The repository allows the easy download of larger data files required to run SNEEP and contains 4 files, explained in more detail in the following. 
+
+## The dbSNP database: 
+
+To identify TFs effected more often in the given input SNP set than expected, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the dbSNP database and rerun the analysis on these SNPs. 
+In order sample the SNPs in a fast and efficient manner, we provide a file containing the SNPs of the dbSNP database.  The file is a slightly modified version of the [public available one]( https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) (file GCF_000001405.38). In detail, we 
+
+-	removed all SNPs overlapping with a protein-coding region (annotation of the [human genome (GRCh38), version 36 (Ensembl 102)]( https://www.gencodegenes.org/human/release_36.html)),
+-	removed all information not important for SNEEP,
+-	removed mutations longer than 1 bp,
+-	sort SNPs according to their MAF distribution in ascending order. 
+
+
+## Epigenetic interactions: 
+
+We provide three files containing epigenetic interactions associated to target genes. 
+
+-	interactionsREMs.txt provides regulatory elements (REMs) linked to their target genes. The data was derived with the STITCHIT algorithm, which is a peak-calling free approach to identify gene-specific REMs by analyzing epigenetic signal of diverse human cell-types with regard to gene expression of a certain gene. For more information, you can also have a look at our public [EpiRegio database](https://epiregio.de) holding all REMs stored in the interactionsREMs.txt file. 
+-	interactionsREM_PRO.txt: Additional to the REMs the promoters (+/- 500 bp around TSS) of the genes are included as regions linked to their target genes. 
+-	interactionsREMs_PRO_HiC.txt: We further added HiC regions identified via the ABC algorithm on human heart data from a [recent published paper from Anene-Nzelu *et al.*]( https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.120.046040?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%20%200pubmed).
+
+
+Please download the zenodo repository to the SNEEP (SNEEP/) directory and gunzip the files. 
+
+
+It is also possible to use your own epigenetic interactions file or extend on of ours with for instance cell type specific data. Please stick to our tab-separated format: 
+
+-	chr of the linked region
+-	start of the linked region (0-based)
+-	end of the linked region (0-based)
+-	target gene (ensembl ID)
+-	unique identifier of the interaction region not longer than 10 letters/digits (e.g., PRO0000001, HiC0000234, … ), 
+-	7 tab-separated dots (or additional information which you wish to keep -> displayed in the result.txt file but not in the summary pdf). 
 
 # Usage 
 
