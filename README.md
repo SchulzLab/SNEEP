@@ -258,27 +258,27 @@ The output files of a SNEEP run can either be found in the default output direct
 
 The file lists all SNPs which cause a significant change of the binding affinity for a TF. A single SNP can affect multiple TFs, which results in multiple lines in the result file. The first 14 entries are the following: 
 
--	SNP_position (chr:start-end,  0-based)
--	var1 (e.g., effector allele or alternative allele),
--	var2 (e.g., wild type allele),
--	rsID 
--	MAF 
--	peakPosition, if additional footprint/open chromatin region file is used (flag -f) the position of the overlapping region is given, otherwise . (meaning the option was not used).
--	TF, name of the affected TF 
--	TF-binding_position, genomic region, which is bound by the affected TF 
--	strand, strand to which the TF binds (r) -> reverse strand, (f) -> forward
--	effectedPositionInMotif, position within the TF binding motif which is affected by the SNP
--	pvalue_BindAff_var1: p-value of the binding affinity for var1 
--	pvalue_BindAff_var2: p-value of the binding affinity for var2
--	log_pvalueBindAffVar1_pvalueBindAffVar2: logarithmic ratio of the p-value of the binding affinity of var1 and the p-value of the binding affinity of var2
--	pvalue_DiffBindAff: corresponding p-value for the previous entry (log_pvalueBindAffVar1_pvalueBindAffVar2)
+-	*SNP_position* chr:start-end (0-based),
+-	*var1* e.g., effector allele or alternative allele,
+-	*var2* e.g., wild type allele,
+-	*rsID* 
+-	*MAF* 
+-	*peakPosition* if additional footprint/open chromatin region file is used (flag -f) the position of the overlapping region is given, otherwise . (meaning the option was not used).
+-	*TF* name of the affected TF 
+-	*TF-binding_position* genomic region, which is bound by the affected TF 
+-	*strand* strand to which the TF binds (r) -> reverse strand, (f) -> forward
+-	*effectedPositionInMotif* position within the TF binding motif which is affected by the SNP
+-	*pvalue_BindAff_var1* p-value of the binding affinity for var1 
+-	*pvalue_BindAff_var2* p-value of the binding affinity for var2
+-	*log_pvalueBindAffVar1_pvalueBindAffVar2* logarithmic ratio of the p-value of the binding affinity of var1 and the p-value of the binding affinity of var2
+-	*pvalue_DiffBindAff* corresponding p-value for the previous entry (log_pvalueBindAffVar1_pvalueBindAffVar2)
 
 If the current SNPs overlaps with an epigenetic interaction, the following entries, provide more information about the interaction regions. Otherwise, the remaining entries are filled with ‘.’.
 
--	REM_positions: genomic region of the epigentic interaction 
--	ensemblIDs, ensemble ID of the associated gene
--	geneNames, gene name of the associated gene
--	REMIds, unique identifier of the epigenetic interactions (if it is an identifier for a REM it can be used to search for the region in our EpiRegio database) 
+-	*REM_positions* genomic region of the epigentic interaction 
+-	*ensemblIDs* ensemble ID of the associated gene
+-	*geneNames* gene name of the associated gene
+-	*REMIds* unique identifier of the epigenetic interactions (if it is an identifier for a REM it can be used to search for the region in our EpiRegio database) 
 
 The last 8 entries contain information specific to EpiRegio. For more information, please have a look at epiregio.de.  
 
