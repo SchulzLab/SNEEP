@@ -280,7 +280,7 @@ If the current SNPs overlaps with an epigenetic interaction, the following entri
 -	*geneNames* gene name of the associated gene
 -	*REMIds* unique identifier of the epigenetic interactions (if it is an identifier for a REM it can be used to search for the region in our EpiRegio database) 
 
-The last 8 entries contain information specific to EpiRegio. For more information, please have a look at [epiregio.de](epiregio.de).  
+The last 8 entries contain information specific to EpiRegio. For more information, please have a look at [epiregio.de](https://epiregio.de).  
 
 
 ## Info file (info.txt) 
