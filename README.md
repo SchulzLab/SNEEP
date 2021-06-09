@@ -91,7 +91,7 @@ The required bed-like SNP file is a tab-separated file containing the following 
 -	var1 (e.g. effector allele or alternative allele) ,
 -	var2 (e.g. wild type allele),
 -	rsID if known, otherwise - ,
--	minor allele frequency (MAF) if known, otherwise -1 (TODO: explain why we need MAF).
+-	minor allele frequency (MAF) if known, otherwise -1. The minor allele frequency is important to provide if you want to assess the result of SNEEP against random controls. Then, SNEEP samples SNPs based on the MAF distribution of the input SNPs. 
 
 A properly formated SNP files looks as following: 
 
