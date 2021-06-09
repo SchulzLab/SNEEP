@@ -54,7 +54,7 @@ In order to sample the SNPs in a fast and efficient manner, we provide a file co
 -	and sorted SNPs according to their MAF distribution in ascending order. 
 
 
-## Epigenetic interactions (interactionsREMs.txt.gz, interactionsREM_PRO.txt.gz and interactionsREM_PRO_HiC.txt.gz)
+## Epigenetic interactions
 
 We provide three files containing epigenetic interactions associated to target genes:
 
