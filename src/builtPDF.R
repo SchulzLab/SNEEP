@@ -11,7 +11,7 @@ library(bookdown) #for cross references within a document
 #pandoc must be installed 
 #tinytex::tlmgr_install('pdfcrop') #install pdfcrop hat Florian gemacht
 
-#tinytex::install_tinytex() #muss man einmal ausführen
+tinytex::install_tinytex() #muss man einmal ausführen
 args <- commandArgs(trailingOnly = TRUE)
 input_dir <- args[1] # input file
 numberRounds <-args[2] #number of randmly sampled background rounds
