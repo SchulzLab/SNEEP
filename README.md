@@ -41,9 +41,9 @@ make
 ```
 
 # Download Zenodo repository
-Additionally, to the GitHub repository, which contains the source code and small example files, we created a Zenodo repository. The repository allows the easy download of larger data files required to run SNEEP and contains 4 files, explained in more detail in the following. 
+Additionally, to the GitHub repository, which contains the source code and small example files, we created a [Zenodo repository](https://doi.org/10.5281/zenodo.4892591). The repository allows the easy download of larger data files required to run SNEEP and contains 4 files, explained in more detail in the following. 
 
-## The dbSNP database: 
+## dbSNP database (dbSNPs_sorted.txt.gz) 
 
 To identify TFs effected more often in the given input SNP set than expected, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the dbSNP database and rerun the analysis on these SNPs. 
 In order to sample the SNPs in a fast and efficient manner, we provide a file containing the SNPs of the dbSNP database.  The file is a slightly modified version of the [public available one]( https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) (file GCF_000001405.38). In detail, we 
@@ -54,7 +54,7 @@ In order to sample the SNPs in a fast and efficient manner, we provide a file co
 -	and sorted SNPs according to their MAF distribution in ascending order. 
 
 
-## Epigenetic interactions: 
+## Epigenetic interactions (interactionsREMs.txt.gz, interactionsREM_PRO.txt.gz and interactionsREM_PRO_HiC.txt.gz)
 
 We provide three files containing epigenetic interactions associated to target genes:
 
