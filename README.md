@@ -29,9 +29,9 @@ Please make sure that the following software is available on your machine:
 - g++ (9.3.0)
 - python3.x
 - bedtools (v2.27.1)
-- knitr and R for overview pdf (details?!)
 - openmp
-- R (4.0.4), ggplot2 library
+- R (4.0.4) and the following libraries: ggplot2, rmarkdown, tinytex, knitr, kableExtra and bookdown
+- for summary report additional pandoc and pdfcrop.
 
 To install SNEEP,  run the following commands: 
 
