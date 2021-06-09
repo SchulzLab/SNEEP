@@ -252,5 +252,43 @@ Rscript  src/builtPDF.R <absolute-path>/SNEEP/examples/SNEEP_output_background_s
 The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory, hence in our case in the  examples/SNEEP_output_background_sampling/ directory.
 
 # Detailed explanation of the output files 
+The output files of a SNEEP run can either be found in the default output directory (SNEEP_output/) or in the user-defined one. In the following the most important output files are explained in more detail: 
 
-TODO: ...
+## The main result file (result.txt) 
+
+The file lists all SNPs which cause a significant change of the binding affinity for a TF. A single SNP can affect multiple TFs, which results in multiple lines in the result file. The first 14 entries are the following: 
+
+-	SNP_position (chr:start-end,  0-based)
+-	var1 (e.g., effector allele or alternative allele),
+-	var2 (e.g., wild type allele),
+-	rsID 
+-	MAF 
+-	peakPosition, if additional footprint/open chromatin region file is used (flag -f) the position of the overlapping region is given, otherwise . (meaning the option was not used).
+-	TF, name of the affected TF 
+-	TF-binding_position, genomic region, which is bound by the affected TF 
+-	strand, strand to which the TF binds (r) -> reverse strand, (f) -> forward
+-	effectedPositionInMotif, position within the TF binding motif which is affected by the SNP
+-	pvalue_BindAff_var1: p-value of the binding affinity for var1 
+-	pvalue_BindAff_var2: p-value of the binding affinity for var2
+-	log_pvalueBindAffVar1_pvalueBindAffVar2: logarithmic ratio of the p-value of the binding affinity of var1 and the p-value of the binding affinity of var2
+-	pvalue_DiffBindAff: corresponding p-value for the previous entry (log_pvalueBindAffVar1_pvalueBindAffVar2)
+
+If the current SNPs overlaps with an epigenetic interaction, the following entries, provide more information about the interaction regions. Otherwise, the remaining entries are filled with ‘.’.
+
+-	REM_positions: genomic region of the epigentic interaction 
+-	ensemblIDs, ensemble ID of the associated gene
+-	geneNames, gene name of the associated gene
+-	REMIds, unique identifier of the epigenetic interactions (if it is an identifier for a REM it can be used to search for the region in our EpiRegio database) 
+
+The last 8 entries contain information specific to EpiRegio. For more information, please have a look at epiregio.de.  
+
+
+## The info file (info.txt) 
+
+The file info.txt holds the input parameters used for the SNEEP run. 
+
+## Summary report (summaryReport.pdf)
+
+The file summaryReport.pdf presents our summary analysis and is only generated if the background sampling was performed. All information shown in the file are taken from result.txt, info.txt and TF_count.txt file. The TF_count.txt file contains for each TF how often this TF was significantly affected by a SNP for the input data and each random sampled round. All the tables and figures illustrated in the summary report are explained in the file itself. 
+
+
