@@ -291,6 +291,6 @@ The file info.txt holds the input parameters used for the SNEEP run.
 
 The file summaryReport.pdf presents our summary analysis and is only generated if the background sampling was performed. All information shown in the file are taken from result.txt, info.txt and TF_count.txt file. The TF_count.txt file contains for each TF how often this TF was significantly affected by a SNP for the input data and each random sampled round. All the tables and figures illustrated in the summary report are explained in the file itself. 
 
-## result of the random background sampling
+## Result of the random background sampling
 
 The results for the random background sampling can be found in the directory sampling and contains per round the randomly sampled SNPs (random_SNPs_<round>.txt) and the randomResult.txt file (similar to result.txt). 
