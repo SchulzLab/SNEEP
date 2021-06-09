@@ -254,7 +254,7 @@ The resulting summary pdf is called summaryReport.pdf, and can be found in the S
 # Detailed explanation of the output files 
 The output files of a SNEEP run can either be found in the default output directory (SNEEP_output/) or in the user-defined one. In the following the most important output files are explained in more detail: 
 
-## The main result file (result.txt) 
+## Main result file (result.txt) 
 
 The file lists all SNPs which cause a significant change of the binding affinity for a TF. A single SNP can affect multiple TFs, which results in multiple lines in the result file. The first 14 entries are the following: 
 
@@ -283,7 +283,7 @@ If the current SNPs overlaps with an epigenetic interaction, the following entri
 The last 8 entries contain information specific to EpiRegio. For more information, please have a look at epiregio.de.  
 
 
-## The info file (info.txt) 
+## Info file (info.txt) 
 
 The file info.txt holds the input parameters used for the SNEEP run. 
 
@@ -291,4 +291,6 @@ The file info.txt holds the input parameters used for the SNEEP run.
 
 The file summaryReport.pdf presents our summary analysis and is only generated if the background sampling was performed. All information shown in the file are taken from result.txt, info.txt and TF_count.txt file. The TF_count.txt file contains for each TF how often this TF was significantly affected by a SNP for the input data and each random sampled round. All the tables and figures illustrated in the summary report are explained in the file itself. 
 
+## result of the random background sampling
 
+The results for the random background sampling can be found in the directory sampling and contains per round the randomly sampled SNPs (random_SNPs_<round>.txt) and the randomResult.txt file (similar to result.txt). 
