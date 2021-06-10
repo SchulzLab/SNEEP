@@ -132,7 +132,7 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 ./src/differentialBindingAffinity_multipleSNPs  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file> 
 ```
 
-Per default the result is stored in the directory ‘SNEEP_output’. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files).
+Per default the result is stored in the directory ‘SNEEP_output’. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
 
 ## Optional input parameters
 
@@ -202,7 +202,7 @@ For our example, we want to use an ATAC-seq on human heart right ventricle from 
 To download the data run: 
 
 ```
-wget ‘https://www.encodeproject.org/files/ENCFF199VHV/@@download/ENCFF199VHV.bed.gz’
+ wget 'https://www.encodeproject.org/files/ENCFF199VHV/@@download/ENCFF199VHV.bed.gz'
 ```
 
 Next unzip the file via gunzip.
