@@ -402,10 +402,10 @@ int InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 			//store skipped entries as header of the fasta file
 			if (getOverlappingFootprints() == inputFile){
 				vector<string> entriesLine;
-				for(int i = 5; i <= entriesSNPFile-1; ++i){ //skip entries which are not important
+				/*for(int i = 5; i <= entriesSNPFile-1; ++i){ //skip entries which are not important
 					pos = line.find(delim);
 					line.erase(0, pos + 1);
-				}
+				}*/
 				//read peak info
 	//			cout << line << endl;
 	//			cout << "raed peak info before" << endl;
