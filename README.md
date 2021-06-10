@@ -40,6 +40,8 @@ cd SNEEP/src/
 make
 ```
 
+We tested the code only on a linux machine. 
+
 # Download Zenodo repository
 Additionally, to the GitHub repository, which contains the source code and small example files, we created a [Zenodo repository](https://doi.org/10.5281/zenodo.4892591). The repository allows the easy download of larger data files required to run SNEEP and contains 4 files, explained in more detail in the following. 
 
