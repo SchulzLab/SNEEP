@@ -31,7 +31,7 @@ Please make sure that the following software is available on your machine:
 - bedtools (v2.27.1)
 - openmp
 - R (4.0.4) and the following libraries: ggplot2, rmarkdown, tinytex, knitr, kableExtra and bookdown
-- for summary report additional pandoc and pdfcrop.
+- for summary report additional pandoc and pdfcrop (Don't forget to run tinytex::tlmgr_install('pdfcrop') once in R).
 
 To install SNEEP,  run the following commands: 
 
