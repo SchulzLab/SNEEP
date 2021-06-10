@@ -65,7 +65,7 @@ We provide three files containing epigenetic interactions associated to target g
 -	interactionsREMs_PRO_HiC.txt: We further added HiC regions linked to target genes via the ABC algorithm on human heart data from a [recent published paper from Anene-Nzelu *et al.*]( https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.120.046040?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%20%200pubmed).
 
 
-Please download the zenodo repository to the SNEEP (SNEEP/) directory and gunzip the files. 
+Please download the [zenodo repository](https://doi.org/10.5281/zenodo.4892591) to the SNEEP (SNEEP/) directory and gunzip the files. 
 
 
 It is also possible to use your own epigenetic interactions file or extend on of ours with for instance cell type specific data. Please stick to our tab-separated format: 
