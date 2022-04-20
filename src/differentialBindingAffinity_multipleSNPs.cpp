@@ -58,6 +58,8 @@ vector<string> parseHeader(string header, string delim); //parse the header of t
 void writeHeadersOutputFiles(bool writeOutput, bool writeMaxOutput, string& currentOutput, string& currentMaxOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
 void determineMAFsForSNPs(string SNPsFile,vector<double>& MAF);
 string getToken(string& line, char delim);
+//bool sortbyth(const tuple<double, string, double>& a, const tuple<double, string, double>& b);
+bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b);
 
 int main(int argc, char *argv[]){
 
@@ -91,14 +93,14 @@ int main(int argc, char *argv[]){
 	unordered_map<string, vector<string>> SNPsToOverlappingREMs;
 	if (REMs != ""){
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\tversion\tSNP_strand\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\tversion\tSNP_strand\n";
 		string output = io.getOverlappingREMs();
 		//bc.intersect(REMs, SNPFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 		bc.intersect(REMs, SNPFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 	}else{
 		
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tSNP_strand\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\tSNP_strand\n";
 	}
 	//determine overlapping peaks
 	string footprintFile = io.getFootprints();
@@ -143,6 +145,7 @@ int main(int argc, char *argv[]){
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for(int j = 0; j < PWM_files.size(); ++j){ // iterate over all given motifs
 		motif = PWM_files[j].substr(0 , PWM_files[j].size() -4); // set motif
+//		cout << "motif name: " << motif << endl;
 		pvalue  pvalue_obj(PWMs[j].ncol(), EPSILON); // EPSILON entspricht accuracy !!! 
 		vector<double> pvalues = pvalue_obj.calculatePvalues(PWMs[j], freq, transition_matrix);
 		#pragma omp critical (storePvalues)
@@ -200,6 +203,7 @@ int main(int argc, char *argv[]){
 	for (int i = 0; i <numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
 		//define variables
 		vector<tuple<double, string>> overallResultMax; //stores max result
+		//vector<tuple<double, string, double>> overallResultMax; //stores max result
 		unordered_map<string, double> TFBindingValues;
 		unordered_map<string, string> helperOverallResult;
 		string chr = "",  mutSeq = "", direction = "", wildtypeSeq = "", genes = "", REMs_ = ""; //stores if the SNP annotation was for the forward or the reversed strand
@@ -220,7 +224,6 @@ int main(int argc, char *argv[]){
 		if (!mutSeq.empty()){//if mutSeq is not a fit, the stringis empty
 			writeHeadersOutputFiles(writeOutput, writeOutputMax, currentOutput, currentMaxOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
 		}
-		
 		for(int j = 0; j < numMotifs; ++j){ // iterate over all given motifs
 			int sigHit = 0; //for MatrixSigHits
 				
@@ -236,6 +239,7 @@ int main(int argc, char *argv[]){
 			vector<double> secondSeq; // stores binding affinity mutated seq
 		
 			motif = motifNames[j]; //set motif
+			//cout << "motif: " << motif << endl;
 			int lenMotif = lenMotifs[j];
 			vector<double> pvalues = all_pvalues[motif]; //pvalues for current motif
 
@@ -248,57 +252,104 @@ int main(int argc, char *argv[]){
 				sigHit = 1;
 			}
 			//determine differential binding affinity for all sig kmers in wildtype and mutated seq
-			for (int l = 0; l < firstSeq.size(); ++l){ 
+			vector <pair<double, int>> allDiffBinding;	
+			//int maxDiff_index = 0;
+			if (sigHit == 1){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
+				for (int l = 0; l < firstSeq.size(); ++l){ 
 			
-				if (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue()){
-						
-					//posSigHit = seq_start + floor(l/2); //deterime position of the hit	
-					posSigHit = pos + floor(l/2); //deterime position of the hit	
+					if (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue()){
+						posSigHit = pos + floor(l/2); //deterime position of the hit	
 
-					//determine differntial binding
-					diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_);
-							
-					//stores info maximal diff binding affinity
-					if (diffBinding <= maxDiffBinding){
-						maxDiffBinding = diffBinding;
-						maxPosSigHit = posSigHit;
-						maxOrientation = forwardOrReverse(l);
-						maxVal1 = firstSeq[l];
-						maxVal2 = secondSeq[l];
-						maxLog = log_;
-						maxLenMotif = lenMotif;
-					}
-					//add current SNP info to output (currentOutput)
-					if (writeOutput){
-						currentOutput.append(motif + '\t' + chr + ":" + to_string(posSigHit) + forwardOrReverse(l) + '\t' + to_string(firstSeq[l]) +  "\t" +  to_string(secondSeq[l]) +  "\t" + to_string(log_) + '\t' +  to_string(diffBinding)  + '\n');
+						//determine differntial binding
+						diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_);
+						allDiffBinding.push_back(make_pair(diffBinding, l));
+						//stores info maximal diff binding affinity
+						if (diffBinding <= maxDiffBinding){// and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
+							maxDiffBinding = diffBinding;
+							maxPosSigHit = posSigHit;
+							maxOrientation = forwardOrReverse(l);
+							maxVal1 = firstSeq[l];
+							maxVal2 = secondSeq[l];
+							maxLog = log_;
+							maxLenMotif = lenMotif;
+							//maxDiff_index = l;
+						}
+						//add current SNP info to output (currentOutput)
+						if (writeOutput){ // and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
+							currentOutput.append(motif + '\t' + chr + ":" + to_string(posSigHit) + forwardOrReverse(l) + '\t' + to_string(firstSeq[l]) +  "\t" +  to_string(secondSeq[l]) +  "\t" + to_string(log_) + '\t' +  to_string(diffBinding)  + '\n');
+						}
 					}
 				}
-			}
-			//ouput maximal binding affinity for the current seq
-			overallResultMax.push_back(make_tuple(maxDiffBinding, motif));
-			string value = "";
-			if (maxOrientation  == "(f)"){
-				value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding);
+				//adjust pvalue using benjamini hochberg method
+				/*sort(allDiffBinding.rbegin(), allDiffBinding.rend()); //sort p-values
+				double number_kmers = allDiffBinding.size(); 
+				double rank = allDiffBinding.size(); 			
+				double previous_pvalue = 1.0;
+				//double fdr= io.getPvalueDiff(); // assumed false discorvery rate
+				double pvalue_cutoff = 0.0;
+				vector<double> corrected_pvalues;
+				for (auto p_val_pair : allDiffBinding){
+					double p_val = p_val_pair.first;
+					double helper = min(p_val*(number_kmers/rank), previous_pvalue);
+					//cout << "rank: "  << rank << " pval: " << p_val <<  " numberKmers: " << number_kmers <<  " pvalue: " << p_val <<  " corrected p-value: " << helper  << endl;
+					corrected_pvalues.push_back(helper);
+					previous_pvalue = helper;
+					rank--;
+				}
+	
+				//ouput maximal binding affinity for the current seq
+				auto index = distance(allDiffBinding.begin(), find_if(allDiffBinding.begin(), allDiffBinding.end(), [&](const pair<double, int> pair) { return pair.second == maxDiff_index; })); //get position of maxDiffBinding in the sorted array
+				double corrected_pvalue = corrected_pvalues[index]; // based on index we can figure out the corrected pvalue
+				//cout << "index: " << index << "corrected+pvalue: " << corrected_pvalue << endl;
+				*/
+				//overallResultMax.push_back(make_tuple(maxDiffBinding, motif, corrected_pvalue)); //add corrected pvalue to overallResultMAx
+				overallResultMax.push_back(make_tuple(maxDiffBinding, motif)); //add corrected pvalue to overallResultMAx
+				string value = "";
+				if (maxOrientation  == "(f)"){
+					//value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding) + '\t' + to_string(corrected_pvalue);
+					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding);
+				}else{
+					//value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding) +  '\t' + to_string(corrected_pvalue);
+					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding);
+					
+				}
+				helperOverallResult[motif] = value;
+				TFBindingValues[motif] = maxLog;
 			}else{
-				value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding);
-				
-
+				overallResultMax.push_back(make_tuple(1.0, motif)); //we need all motifs to  fdr corrected the pvalue
 			}
-			helperOverallResult[motif] = value;
-			TFBindingValues[motif] = maxLog;
 		}
 	
 		//sort overall_result per seq and all TFs
 		string m = "";
 		double p = 0.0;
-		sort(overallResultMax.begin(), overallResultMax.end());
-
+		double c_p = 0.0; //stores fdr corrected pvalue
+		//sort(overallResultMax.begin(), overallResultMax.end());
+		sort(overallResultMax.begin(), overallResultMax.end(), sortbyth);
+	//	cout << overallResultMax.size() << endl;
+	//	for (int k = 0; k < overallResultMax.size(); ++k){
+	//		cout << "original pvalue " << get<0>(overallResultMax[k]) << " motif: " << get<1>(overallResultMax[k]) << " corrected pvalue: " << get<2>(overallResultMax[k]) << endl;
+	//	}
+		//adjust pvalue
+		double number_motifs = overallResultMax.size(); 
+		double rank = overallResultMax.size(); 			
+		double previous_pvalue = 1.0;
+	
 		bool sigEntriesOnce = true;// necessary to count the sig entrie only once even if there are more than on TF affected
 		bool overlappingREMsOnce = true; //same here
 		for (int k = 0; k < overallResultMax.size(); ++k){
 			p = get<0>(overallResultMax[k]); //pvalue
 			m = get<1>(overallResultMax[k]); //motif name
-			if (p <= io.getPvalueDiff()){
+			//c_p = get<2>(overallResultMax[k]);
+			double helper = min(p*(number_motifs/rank), previous_pvalue);
+			//double helper = p*number_motifs;
+			//cout << "rank: "  << rank << " pval: " << p <<  "numbermotifs: " << number_motifs <<  " corrected p-value: " << helper  << endl;
+			previous_pvalue = helper;
+			rank--;
+
+			//if (p <= io.getPvalueDiff()){
+			//if (c_p <= io.getPvalueDiff()){
+			if (helper <= io.getPvalueDiff()){
 				#pragma omp critical
 				realData_TFs[m]+=1;// count number of TF hits seen in original data
 				if (sigEntriesOnce == true){
@@ -312,7 +363,8 @@ int main(int argc, char *argv[]){
 				}
 				if (REMs == ""){
 					//resultFile << splittedHeader[0] << '\t' << splittedHeader[1] << '\t' << splittedHeader[2] << '\t' << splittedHeader[3] << '\t' << splittedHeader[4] << '\t'<< splittedHeader[5] << '\t' << m << '\t' <<  helperOverallResult[m] << '\t' << splittedHeader[6] << '\n';
-					currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + splittedHeader[6] + '\n');
+					//currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + splittedHeader[6] + '\n');
+					currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + to_string(helper) + '\t' + splittedHeader[6] + '\n');
 				}else{
 					if (splittedHeader[7] != "."){
 						if (overlappingREMsOnce == true){
@@ -321,7 +373,8 @@ int main(int argc, char *argv[]){
 						}
 					}
 
-					currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n');//'\t' << splittedHeader[16] << "\t" << splittedHeader[17] << '\n'; 
+					currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' +  to_string(helper) + '\t'  + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n');//'\t' << splittedHeader[16] << "\t" << splittedHeader[17] << '\n'; 
+					//currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n');//'\t' << splittedHeader[16] << "\t" << splittedHeader[17] << '\n'; 
 				}
 			}	
 		}
@@ -481,6 +534,7 @@ int main(int argc, char *argv[]){
 				
 				string currentResult = "";
 				//define variables
+				//vector<tuple<double, string, double>> current_overallResultMax; //stores max result
 				vector<tuple<double, string>> current_overallResultMax; //stores max result
 				unordered_map<string, string> current_helperOverallResult;
 				unordered_map<string, double> current_TFBindingValues;
@@ -524,61 +578,87 @@ int main(int argc, char *argv[]){
 							current_sigHit = 1;
 						}
 						//determine differential binding affinity for all sig kmers in wildtype and mutated seq
-						for (int l = 0; l < current_firstSeq.size(); ++l){ 
+						vector<pair<double, int>> current_allDiffBinding; 
+						int current_maxDiff_index = 0;
+						if (current_sigHit == 1){
+							for (int l = 0; l < current_firstSeq.size(); ++l){ 
 			
-							if (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue){
+								if (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue){
 						
-								current_posSigHit = current_pos + floor(l/2); //deterime position of the hit	
+									current_posSigHit = current_pos + floor(l/2); //deterime position of the hit	
 
-								//determine differntial binding
-								current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_);
+									//determine differntial binding
+									current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_);
+									//current_allDiffBinding.push_back(make_pair(current_diffBinding, l));
 								
-								//stores info maximal diff binding affinity
-								if (current_diffBinding <= current_maxDiffBinding){
-									current_maxDiffBinding = current_diffBinding;
-									current_maxPosSigHit = current_posSigHit;
-									current_maxOrientation = forwardOrReverse(l);
-									current_maxVal1 = current_firstSeq[l];
-									current_maxVal2 = current_secondSeq[l];
-									current_maxLog = current_log_;
-									current_maxLenMotif = lenMotif;
-								}
+									//stores info maximal diff binding affinity
+									if (current_diffBinding <= current_maxDiffBinding){// and (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue)){
+										current_maxDiffBinding = current_diffBinding;
+										current_maxPosSigHit = current_posSigHit;
+										current_maxOrientation = forwardOrReverse(l);
+										current_maxVal1 = current_firstSeq[l];
+										current_maxVal2 = current_secondSeq[l];
+										current_maxLog = current_log_;
+										current_maxLenMotif = lenMotif;
+										//current_maxDiff_index = l;
+									}
+								}	
 							}
-						}
-						//ouput maximal binding affinity for the current seq
-						current_overallResultMax.push_back(make_tuple(current_maxDiffBinding, current_motif));
-						string value = "";
-						if (current_maxOrientation  == "(f)"){
-							value =  current_chr + ':' + to_string(current_maxPosSigHit- current_maxLenMotif+1) + "-" + to_string(current_maxPosSigHit+1) + '\t' +  current_maxOrientation + '\t' + to_string( current_pos - (current_maxPosSigHit- current_maxLenMotif+1) +1) + '\t' +   to_string(current_maxVal1) + '\t' + to_string(current_maxVal2) + '\t' + to_string(current_maxLog) + '\t' +  to_string(current_maxDiffBinding);
+							//ouput maximal binding affinity for the current seq
+							//current_overallResultMax.push_back(make_tuple(current_maxDiffBinding, current_motif, current_corrected_pvalue));
+							current_overallResultMax.push_back(make_tuple(current_maxDiffBinding, current_motif));
+							string value = "";
+							if (current_maxOrientation  == "(f)"){
+								value =  current_chr + ':' + to_string(current_maxPosSigHit- current_maxLenMotif+1) + "-" + to_string(current_maxPosSigHit+1) + '\t' +  current_maxOrientation + '\t' + to_string( current_pos - (current_maxPosSigHit- current_maxLenMotif+1) +1) + '\t' +   to_string(current_maxVal1) + '\t' + to_string(current_maxVal2) + '\t' + to_string(current_maxLog) + '\t' +  to_string(current_maxDiffBinding);
+							}else{
+								value =  current_chr + ':' + to_string(current_maxPosSigHit- current_maxLenMotif+1) + "-" + to_string(current_maxPosSigHit+1) + '\t' +  current_maxOrientation + '\t' + to_string(current_maxPosSigHit+ 1 - current_pos) + '\t' +   to_string(current_maxVal1) + '\t' + to_string(current_maxVal2) + '\t' + to_string(current_maxLog) + '\t' +  to_string(current_maxDiffBinding);
+							}
+							current_helperOverallResult[current_motif] = value;
+							current_TFBindingValues[current_motif] = current_maxLog;
 						}else{
-							value =  current_chr + ':' + to_string(current_maxPosSigHit- current_maxLenMotif+1) + "-" + to_string(current_maxPosSigHit+1) + '\t' +  current_maxOrientation + '\t' + to_string(current_maxPosSigHit+ 1 - current_pos) + '\t' +   to_string(current_maxVal1) + '\t' + to_string(current_maxVal2) + '\t' + to_string(current_maxLog) + '\t' +  to_string(current_maxDiffBinding);
+							current_overallResultMax.push_back(make_tuple(1.0, current_motif)); //we need all motifs to  fdr corrected the pvalue
 						}
-						current_helperOverallResult[current_motif] = value;
-						current_TFBindingValues[current_motif] = current_maxLog;
 					}
-	
 					//sort overall_result per seq and all TFs and store maximal one
 					string m = "";
 					double p = 0.0;
-					sort(current_overallResultMax.begin(), current_overallResultMax.end());
+					//double c_p = 0.0;
+					//adjust pvalue
+					double number_motifs = current_overallResultMax.size(); 
+					double rank = current_overallResultMax.size(); 			
+					double previous_pvalue = 1.0;
+
+					//sort(current_overallResultMax.begin(), current_overallResultMax.end());
+					sort(current_overallResultMax.begin(), current_overallResultMax.end(), sortbyth);
 					for (int k = 0; k< current_overallResultMax.size(); ++k){
 						p = get<0>(current_overallResultMax[k]); //pvalue
 						m = get<1>(current_overallResultMax[k]); //motif name
-						if (p <= pvalueDiff){
+						//c_p = get<2>(current_overallResultMax[k]); //motif name
+						//fdr correction	
+	
+						double helper = min(p*(number_motifs/rank), previous_pvalue);
+						//double helper = p*number_motifs;
+						//cout << "random rank: "  << rank << " pval: " << p <<  "numbermotifs: " << number_motifs <<  " corrected p-value: " << helper  << endl;
+						previous_pvalue = helper;
+						rank--;
+
+						//if (p <= pvalueDiff){
+						//if (c_p <= pvalueDiff){
+						if (helper <= pvalueDiff){
 							#pragma omp critical
 							TF_counts[m] += 1; //count per round number of sig. TF hits
 
 							if (REMs == ""){
-								currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n');
+								currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + to_string(helper) + '\t'  + current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n');
 							}else{
-								currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n');
+								currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m] + '\t' + to_string(helper) + '\t' +  current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n');
 							}
 						}
 					}
 					//allows only one thread to write in the output 
 					#pragma omp critical (writeRandomResult)
 					randomResult << currentResult;
-				//}
+			//	}
 			}
 			randomResult.close();	
 			//write output TF_counts for the current round
@@ -647,7 +727,10 @@ string getToken(string& line, char delim){
 	}
 }
 
-
+bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b){
+    //return (get<2>(a) > get<2>(b));
+	return (get<0>(a) > get<0>(b));
+}
 
 /*
 / read or determine MAF distribution of the input SNPs
@@ -969,7 +1052,8 @@ double differentialBindingAffinity(double first_elem, double second_elem, unorde
 
 	//determine pvalue
 	//symmetric laplace(0,1) 
-	pvalue = 1 - cdf_laplace(0.0, 1.0, abs(log_));
+	//pvalue = 1 - cdf_laplace(0.0, 1.0, abs(log_));
+	pvalue = 1 - cdf_laplace(0.0, 0.368, abs(log_));
 	return pvalue;	
 }
 

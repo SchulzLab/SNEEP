@@ -26,12 +26,12 @@ header-includes:
 ---
 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, message=FALSE}
 library(stringi)
 library(plyr)
-#data  <- read.delim("../Kessler_SNP_Analysis/SNP_analysis_3_april/result.txt", header = TRUE, sep = "\t") # read data
+library(hash)
+#print("hier")
 data  <- read.delim(params$resultFile, header = TRUE, sep = "\t") # read data
-#TF_counts <- read.delim("../Kessler_SNP_Analysis/SNP_analysis_3_april/sampling/TF_count.txt", header = TRUE, row.names = 1, sep = "\t")
 TF_counts <- read.delim(params$TFcountFile, header = TRUE, row.names = 1, sep = "\t")
 con = file(params$infoFile, "r")
 numberRounds = as.double(params$rounds) #number rounds of background sampling 
@@ -60,19 +60,19 @@ for (value in TF_names){
 	sig_TFs[value, "observed"] = count
 	sig_TFs[value, "sampled"] = sampledCount
 }
-
+#print(sig_TFs)
 sig_TFs = subset(sig_TFs, pvalues <=0.05)
 sig_TFs = subset(sig_TFs, observed >as.double(params$minTFCount)) #exclude observed TFs with low general count
-#sig_TFs = subset(sig_TFs, pvalues <=0.1)
 sig_TFs = sig_TFs[order(sig_TFs$pvalues),]
-#print(sig_TFs)
 num_sig_TFs = nrow(sig_TFs)
-#print(num_sig_TFs)
-associatedTFs = FALSE
-if (num_sig_TFs != 0){
-	associatedTFs = TRUE
-}
 
+
+#associatedTFs = FALSE
+#if (num_sig_TFs != 0){
+#	associatedTFs = TRUE
+#}
+
+associatedTFs = TRUE
 associatedGenes = FALSE
 
 ###
@@ -80,9 +80,11 @@ associatedGenes = FALSE
 ###
 
 if (associatedTFs == TRUE){
-	entries = data.frame(matrix(0L, nrow = num_sig_TFs, ncol = 5)) #initalize matrix with 0
+	#entries = data.frame(matrix(0L, nrow = num_sig_TFs, ncol = 5)) #initalize matrix with 0
+	entries = data.frame(matrix(0L, nrow = numTFs, ncol = 5)) #initalize matrix with 0
 	names_sig_TFs = rownames(sig_TFs)
-	rownames(entries) = names_sig_TFs
+	#rownames(entries) = names_sig_TFs
+	rownames(entries) = TF_names
 	colnames(entries) = c("TF", "gain", "loss", "pvaluesBinomial", "function")
 	TFs = data$TF
 	log_diffBind = data$log_pvalueBindAffVar1_pvalueBindAffVar2
@@ -91,35 +93,41 @@ if (associatedTFs == TRUE){
 	for (i in 1:length(TFs)){
 		TF = TFs[i]
 		TF = gsub('[\\(\\):-]', '.', TF) #replace ():- to . (default behavoir of R for stirngs)
-		if (TF %in% rownames(sig_TFs)){
+		#if (TF %in% rownames(sig_TFs)){
 			entries[TF, "TF"] = TF
 			if (as.double(log_diffBind[i]) > 0.0){
 				entries[TF,'gain'] = entries[TF, 'gain'] + 1
 			}else{
 				entries[TF,'loss'] = entries[TF, 'loss'] + 1
 			}
-		}
+		#}
 	}	
 	#apply  binomial test to determine significance
 	totalTrails = entries[, 'loss'] +  entries[, 'gain']
 	successes = entries[, 'gain']
 	pvaluesBinomial = c()
-	for (i in 1:num_sig_TFs){
-		TF = names_sig_TFs[i]
-		binomialResult = binom.test(x = successes[i], n = totalTrails[i], p = 0.5, alternative = "two.sided", conf.level = 0.95)
-		entries[TF, "pvaluesBinomial"] = c(pvaluesBinomial, binomialResult$p.value)
-	#	print(binomialResult$p.value)
-	        if (entries[TF, 'loss'] < entries[TF, 'gain']){
-                        entries[TF,"function"] =  "gain"
-	        }
-	        if (entries[TF, 'gain'] < entries[TF, 'loss']){
-                        entries[TF,"function"] =  "loss"
-	        }
-	        if (entries[TF, 'loss'] == entries[TF, 'gain']){
-                        entries[TF,"function"] =  "equal"
-       		}	
+	#for (i in 1:num_sig_TFs){
+	for (i in 1:numTFs){
+		#TF = names_sig_TFs[i]
+		TF = TF_names[i]
+		if (totalTrails[i] > 0){
+			binomialResult = binom.test(x = successes[i], n = totalTrails[i], p = 0.5, alternative = "two.sided", conf.level = 0.95)
+			entries[TF, "pvaluesBinomial"] = c(pvaluesBinomial, binomialResult$p.value)
+		#	print(binomialResult$p.value)
+		        if (entries[TF, 'loss'] < entries[TF, 'gain']){
+               			entries[TF,"function"] =  "gain"
+	        	}
+	        	if (entries[TF, 'gain'] < entries[TF, 'loss']){
+				entries[TF,"function"] =  "loss"
+	        	}
+	        	if (entries[TF, 'loss'] == entries[TF, 'gain']){
+                 	       entries[TF,"function"] =  "equal"
+       			}		
+		}
 	}
 	entries = entries[order(entries$pvaluesBinomial),] # sort according to pvalue
+	entries = subset(entries, pvaluesBinomial >0) #eliminate TFs which do not occur at all
+	entries = subset(entries, pvaluesBinomial <=0.1) # print only sig gain or loss TFs
 	#print(entries)
 
 	###
@@ -143,7 +151,7 @@ if (associatedTFs == TRUE){
 
 		TF = data[row, "TF"] #get current TF
 		TF = gsub('[\\(\\):-]', '.', TF) #replace ():- to . (default behavoir of R for stirngs)
-		if (TF %in% names_sig_TFs){ #test if TF is one of the significant ones
+		#if (TF %in% names_sig_TFs){ #test if TF is one of the significant ones
 			#store gene info
 			splitGenes = matrix(unlist(strsplit(data[row, "geneNames"], ','))) #split entries must be a matrix otherwise iterating did not work 
 			splitGeneIDs = matrix(unlist(strsplit(data[row, "ensemblIDs"], ',')))
@@ -173,49 +181,74 @@ if (associatedTFs == TRUE){
 				}
 				counter = counter + 1
 			}
-		}
+		#}
 	}
 }
+
 #genes
+genes_table = data.frame(matrix(ncol = 6))
+colnames(genes_table) = c("gene", "ensemblID", "numberREMs", "numberSNPs", "SNPs", "TFs")
+
 if (associatedGenes == TRUE){ #there are  associated genes otherwise skip this
 	genes = genes[-1,] #remove first row (contains only NAs)
-	genes = ddply(genes,.(gene, ensemblID, TFs, SNPs, numberREMs),nrow) #determine how often a gene occurs
+	genes = ddply(genes,.(gene, ensemblID),nrow) #determine how often a gene occurs
 	rownames(genes) = genes$ensemblID
 	gene_TFs = gene_TFs[-1,] #remove first row (contains only NAs)
 	gene_TFs = gene_TFs[order(gene_TFs$ensemblID),]
 
 	#add which TFs and SNPs are associated to the genes 
 	previous_gene = ""
-	helper = ""
-	helper2 = ""
+	TF_SNPs = hash()
 	counter = 0
+	counterSNPs = 0
 	differentREMs = c()
 	for (row in 1:nrow(gene_TFs)){
 		gene = gene_TFs[row, "ensemblID"]
-		#print(gene)
+		SNP = gene_TFs[row, "SNP"]
+		TF = gene_TFs[row, "TF"]
 		if (gene == previous_gene || previous_gene == ""){
-			helper = paste0(helper, '\n', gene_TFs[row, "TF"])
-			helper2 = paste0(helper2, '\n', gene_TFs[row, "SNP"])
-			
+			if (has.key(SNP, TF_SNPs)){ #is SNP already in TF_SNPs?
+				h = TF_SNPs[[SNP]] #already associated TFs
+				if (!(TF %in% h)){ #have we seen the current TF already?
+					h = cbind(h, TF)
+					TF_SNPs[[SNP]] = h
+				}
+			}else{
+				counterSNPs = counterSNPs + 1 # count different SNPs per gene
+				TF_SNPs[[SNP]] = c(TF)
+			}
 			splitREMIDs = matrix(unlist(strsplit(gene_TFs[row, "REM"], ',')))
 			for (e in splitREMIDs){
 				if (!(e %in% differentREMs)){
 					counter = counter + 1
 					differentREMs = c(differentREMs, e)
-					#differentREMs = c(differentREMs, egene_TFs[row, "REM"])
 				}
 			}
 			previous_gene = gene
 		}else{		
-			helper = sub('.', '', helper) #remove first ,
-			helper2 = sub('.', '', helper2) #remove first ,
-			genes[previous_gene, "TFs"] = helper
-			genes[previous_gene, "SNPs"] = helper2
-			genes[previous_gene, "numberREMs"] = counter
+			k = keys(TF_SNPs) #give all SNPs per gene
+			#firstElem = TRUE
+			for (elem in k){
+				#store all TFs in a list for one SNP
+				h = TF_SNPs[[elem]] 
+				firstTime = TRUE
+				TF_list = ""
+				for (e in h){
+					if (firstTime == TRUE){
+						TF_list = paste0(TF_list, e)
+						firstTime = FALSE
+					}else{
+						TF_list = paste0(TF_list, ", " , e)
+					}
+				}	
+				ID = genes[previous_gene, "ensemblID"]
+				n = genes[previous_gene, "gene"]
+				genes_table = rbind(genes_table, c(n, ID, counter, counterSNPs, elem, TF_list))
+			}
 			previous_gene = gene
-			helper = paste0('\n',gene_TFs[row, "TF"])
-			helper2 = paste0('\n',gene_TFs[row, "SNP"])
-			#differentREMs = c(gene_TFs[row, "REM"])
+			TF_SNPs = hash()
+			TF_SNPs[[SNP]] = TF
+			counterSNPs = 1
 			differentREMs = c()
 			splitREMIDs = matrix(unlist(strsplit(gene_TFs[row, "REM"], ',')))
 			counter = 0
@@ -228,59 +261,119 @@ if (associatedGenes == TRUE){ #there are  associated genes otherwise skip this
 		}
 	}
 	#add info for last gene
-	helper = sub('.', '', helper) #remove first , 
-	helper2 = sub('.', '', helper2) #remove first , 
-	genes[previous_gene, "TFs"] = helper
-	genes[previous_gene, "SNPs"] = helper2
-	genes[previous_gene, "numberREMs"] = counter
-	colnames(genes) = c("gene", "ensemblID", "TFs","SNPs", "numberREMs","frequence")
-	genes = genes[order(-genes$frequence),]
-	#print(genes)
+	k = keys(TF_SNPs)
+	for (elem in k){
+		#store all TFs in a list for one SNP
+		h = TF_SNPs[[elem]] 
+		firstTime = TRUE
+		TF_list = ""
+		for (e in h){
+			if (firstTime == TRUE){
+				TF_list = paste0(TF_list, e)
+				firstTime = FALSE
+			}else{
+				TF_list = paste0(TF_list, ", " , e)
+			}
+		}	
+		ID = genes[previous_gene, "ensemblID"]
+		n = genes[previous_gene, "gene"]
+		genes_table = rbind(genes_table, c(n, ID, counter, counterSNPs, elem, TF_list))
+	}
+	genes_table = genes_table[-1,] #remove first row (contains only NAs)
+	genes_table = genes_table[order(strtoi(genes_table$numberSNPs), decreasing = TRUE),]
 
+
+	REMs_table = data.frame(matrix(ncol = 7))
+	colnames(REMs_table) = c("regionID", "length", "gene", "ensemblID",  "numberSNPs", "SNPs", "TFs")
 	#REMs
 	REMs = REMs[-1,] #remove first line (contains only NAs)
 	REMs = ddply(REMs,.(regionID, length, gene, ensemblID, TFs, SNPs),nrow) #determine how often a REM occurs
 	rownames(REMs) = REMs$regionID
-	#print(REMs)
+
 	REM_TFs = REM_TFs[-1,]
 	REM_TFs = REM_TFs[order(REM_TFs$REMID),]
 
 	#add which TFs and SNPs are associated to the REMs 
+	#helper = ""
+	#helper2 = ""
 	previous_REM = ""
-	helper = ""
-	helper2 = ""
+	TF_SNPs = hash()
+	counterSNPs = 0
 	for (row in 1:nrow(REM_TFs)){
 		REM = REM_TFs[row, "REMID"]
+		SNP = REM_TFs[row, "SNP"]
+		TF = REM_TFs[row, "TF"]
+
 		if (REM == previous_REM || previous_REM == ""){
-			helper = paste0(helper, '\n', REM_TFs[row, "TF"])
-			helper2 = paste0(helper2, '\n', REM_TFs[row, "SNP"])
+			if (has.key(SNP, TF_SNPs)){ #is SNP already in TF_SNPs?
+				h = TF_SNPs[[SNP]] #already associated TFs
+				if (!(TF %in% h)){ #have we seen the current TF already?
+					h = cbind(h, TF)
+					TF_SNPs[[SNP]] = h
+				}
+			}else{
+				counterSNPs = counterSNPs + 1 # count different SNPs per gene
+				TF_SNPs[[SNP]] = c(TF)
+			}
 			previous_REM = REM
 		}else{		
-			helper = sub('.', '', helper) #remove first ,
-			helper2 = sub('.', '', helper2) #remove first ,
-			REMs[previous_REM, "TFs"] = helper
-			REMs[previous_REM, "SNPs"] = helper2
+			k = keys(TF_SNPs) #give all SNPs per gene
+			#firstElem = TRUE
+			for (elem in k){
+				#store all TFs in a list for one SNP
+				h = TF_SNPs[[elem]] 
+				firstTime = TRUE
+				TF_list = ""
+				for (e in h){
+					if (firstTime == TRUE){
+						TF_list = paste0(TF_list, e)
+						firstTime = FALSE
+					}else{
+						TF_list = paste0(TF_list, ", " , e)
+					}
+				}	
+				ID = REMs[previous_REM, "ensemblID"]
+				n = REMs[previous_REM, "gene"]
+				length = REMs[previous_REM, "length"]
+				REMs_table = rbind(REMs_table, c(REM, length, n, ID,  counterSNPs, elem, TF_list))
+			}
 			previous_REM = REM
-			helper = paste0('\n',REM_TFs[row, "TF"])
-			helper2 = paste0('\n',REM_TFs[row, "SNP"])
+			TF_SNPs = hash()
+			TF_SNPs[[SNP]] = TF
+			counterSNPs = 1
+			differentREMs = c()
+			counter = 0
 		}
 	}
-	#add info for last REM
-	helper = sub('.', '', helper) #remove first , 
-	helper2 = sub('.', '', helper2) #remove first , 
-	REMs[previous_REM, "TFs"] = helper
-	REMs[previous_REM, "SNPs"] = helper2
-	colnames(REMs) =  c("regionID", "length", "gene", "ensemblID", "TFs", "SNPs", "frequence")
-	REMs = REMs[order(-REMs$frequence),]
-	#print(REMs)
+	#add info for last gene
+	k = keys(TF_SNPs)
+	for (elem in k){
+		#store all TFs in a list for one SNP
+		h = TF_SNPs[[elem]] 
+		firstTime = TRUE
+		TF_list = ""
+		for (e in h){
+			if (firstTime == TRUE){
+				TF_list = paste0(TF_list, e)
+				firstTime = FALSE
+			}else{
+				TF_list = paste0(TF_list, ", " , e)
+			}
+		}	
+		ID = REMs[previous_REM, "ensemblID"]
+		n = REMs[previous_REM, "gene"]
+		length = REMs[previous_REM, "length"]
+		REMs_table = rbind(REMs_table, c(REM, length, n, ID, counterSNPs, elem, TF_list))
+	}
+	REMs_table = REMs_table[-1,] #remove first row (contains only NAs)
+	REMs_table = REMs_table[order(strtoi(REMs_table$numberSNPs), decreasing = TRUE),]
+
 	allREMs = REMs
-	REMs = subset(REMs, frequence >=2) #only show rems associatedd to more than 1 SNP
+	REMs_table = subset(REMs_table, numberSNPs >=2) #only show rems associatedd to more than 1 SNP
 	associatedREMs = FALSE
-	if (nrow(REMs) != 0){
+	if (nrow(REMs_table) != 0){
 		associatedREMs = TRUE
 	}
-	
-	
 }
 
 ###

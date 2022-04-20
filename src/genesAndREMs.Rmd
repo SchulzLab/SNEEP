@@ -2,35 +2,37 @@ To identify which gene's expression may be influenced by a SNP, we considered up
 
 * Promoter sequences (1000bp centered around the most 5’ TSS)
 * EpiRegio, a resource of regulatory elements (REMs) associated to their target genes
-* HiC regions associated to target genes based on the ABC-score.
+* HiC regions associated to target genes based on the (adapted) ABC-score.
 
 If a SNP is overlapping with at least one of these interactions, we provide a target gene in the result file of the analysis. 
 Notice, that several REMs are associated to one gene, but each REM is only associated to one gene. 
 However, REMs linked to different genes can overlap with each other. 
 So, by construction a SNP can be associated to more than one target gene. 
-The interactions from different sources can overlap and can be linked to the same as well as to different genes.                                  
+The interactions from different sources can overlap and can be linked to the same and to different genes.                                  
 
-Table \@ref(tab:associatedGenes) holds the target genes of all SNPs effecting a TF listed in Table \@ref(tab:sigTFs) and overlapping with a interaction.
+Table \@ref(tab:associatedGenes) holds the target genes of all SNPs effecting a TF for which a motif was provided and overlapping with a interaction.
 
-For instance, if we consider the first row of Table \@ref(tab:associatedGenes), `r genes$frequence[[1]]` (not necessarily unique) SNPs significantly affect the binding behavior of TFs and overlap with  `r genes$numberREMs[[1]]` interaction`r if(as.double(genes$numberREMs[[1]]) >1){"s"}`  associated to the gene `r genes$gene[[1]]` (ensembl ID: `r genes$ensemblID[[1]]`). 
+For instance, if we consider the first row of Table \@ref(tab:associatedGenes), `r genes_table$numberSNPs[[1]]` SNPs significantly affect the binding behavior of TFs and overlap with  `r genes_table$numberREMs[[1]]` interaction`r if(as.double(genes_table$numberREMs[[1]]) >1){"s"}`  associated to the gene `r genes_table$gene[[1]]` (ensembl ID: `r genes_table$ensemblID[[1]]`). 
 To distinguish if the same SNP has an impact on several TFs or the same TF is affected by multiple SNPs, we list the TFs and the correspond SNP id (rsID) in the columns *TFs* and *SNPs*.
 
 ```{r, echo = FALSE}
-	genes$TFs = gsub("..", "::", genes$TFs, fixed=TRUE )
-	genes$TFs = gsub(".var.2.", "(var.2)", genes$TFs, fixed=TRUE )
-	genes$TFs = gsub(".var.3.", "(var.3)", genes$TFs, fixed=TRUE )
-	genes$TFs = linebreak(genes$TFs)
-	genes$SNPs = linebreak(genes$SNPs)
-	genes$gene = gsub("_", "\\_", genes$gene, fixed=TRUE) #necessary since escape  must be false for linebreaking and the gene names can include _ which must be especially handled in latex (usually escape is taking care of this)
+	genes_table$TFs = gsub("..", "::", genes_table$TFs, fixed=TRUE )
+	genes_table$TFs = gsub(".M", "(M", genes_table$TFs, fixed=TRUE )
+	genes_table$TFs = gsub(".,", "),", genes_table$TFs, fixed=TRUE )
+	genes_table$TFs = linebreak(genes_table$TFs)
+	genes_table$SNPs = linebreak(genes_table$SNPs)
+	genes_table$gene = gsub("_", "\\_", genes_table$gene, fixed=TRUE) #necessary since escape  must be false for linebreaking and the gene names can include _ which must be especially handled in latex (usually escape is taking care of this)
 
-	knitr::kable(x = genes, format = "latex",longtable = T, booktabs = T, col.names = c( "gene name", "ensembl ID", "TFs", "SNPs", "number\ndifferent interactions", "frequency" ), align = "llllcc", linesep = "", caption = "Target genes of the SNPs with a significant change in the binding affinity of a TF.",  row.names = F, escape = F, label = "associatedGenes") %>%
-        kable_styling(latex_options = c("striped", "repeat_header")) %>%
+	knitr::kable(x = genes_table, format = "latex",longtable = T, booktabs = T, col.names = c( "gene name", "ensembl ID", "number\ndifferent interactions", "number\ndifferent SNPs", "SNPs", "TFs" ), align = "llllll", linesep = "", caption = "Target genes of the SNPs with a significant change in the binding affinity of a TF.",  row.names = F, escape = F, label = "associatedGenes") %>%
 	column_spec(1, width = "2.5cm")%>%
 	column_spec(2, width = "3cm") %>%
-	column_spec(3, width = "2.5cm") %>%
-	column_spec(4, width = "2.5cm") %>%
-	column_spec(5, width = "1.5cm") %>%
-	column_spec(6, width = "1.5cm") 
+	column_spec(3, width = "1.5cm") %>%
+	column_spec(4, width = "1.5cm") %>%
+	column_spec(5, width = "2.5cm") %>%
+	column_spec(6, width = "3.5cm") %>%
+	collapse_rows(columns = 1:4, target = 1, valign = "top") #%>%
+        #kable_styling(latex_options = c( "repeat_header"))
+	
 ```
 
 

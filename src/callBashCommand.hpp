@@ -76,7 +76,7 @@ void BashCommand::mkdir(string dir, string options, bool remove){
 	string command = "mkdir " + options + " " + dir; 
 	system(command.c_str());
 	if (remove == true){
-		string command = "rm -r " + dir + "/*";
+		string command = "rm -r -f " + dir + "/*";
 		system(command.c_str());
 	}
 	return;
@@ -85,7 +85,8 @@ void BashCommand::mkdir(string dir, string options, bool remove){
 void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold){
 //	cout << "sourceDir: " << sourceDir<< "/src/ activeTFs: " << activeTFs << " PFMs: " << TransfacPFMs << "PFMdir: " << PFMsDir << " ensembl names: " << ensemble_name << " threshold: " << threshold << endl; 
 
-	string command = "python3 ./" + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
+	//string command = "python3 ./" + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
+	string command = "python3 "  + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
 //	cout << "command: " << command << endl;
 
 	system(command.c_str());
@@ -93,7 +94,8 @@ void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string act
 }
 
 void BashCommand::callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir){
-	string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
+	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
+	string command = "python3 " + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
 	system(command.c_str());
 	return;
 }

@@ -187,7 +187,7 @@ else:
 					print("TF  without ensemble id: " + TF)		
 			if id_ == True:
 				#if line[0] == "P" or line[0] == "D" or line[0] == "I" or line[0] == "A" or line[0] == 'X' or line[0] == 'C':
-				if line[0][0] == "P" or line[0][0] == "D" or line[0][0] == "I" or line[0][0] == "A" or line[0][0] == 'X' or line[0][0] == 'C':
+				if line[0][0] == "P" or line[0][0] == "D" or line[0][0] == "I" or line[0][0] == "A" or line[0][0] == 'X' or line[0][0] == 'C' or line[0][0] == "N" or line[0][0] == "B":
 					continue
 				elif line[0] == "/":
 					id_ = False

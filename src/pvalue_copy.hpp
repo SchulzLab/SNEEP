@@ -13,7 +13,7 @@
 using namespace std;
 //double E = 1.2e-16;
 double E = 1.2e-16;
-double E2 = 1.0e-13;
+double E2 = 1.0e-12;
 
 
 

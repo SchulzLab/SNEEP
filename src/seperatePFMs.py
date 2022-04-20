@@ -126,7 +126,7 @@ else:
 			if line[0] == "I": #for JASPAR2020
 				TF = ""
 				TF2 = ""
-				line = line.split(" ")
+				line = line.split()
 				TF_filename = line[1]
 				#need to distinguish TFs since there are variants and combined binding sites
 				helper = line[1]
@@ -157,7 +157,7 @@ else:
 				#if TF not in name_ensemble.keys():
 				#	print("TF  without ensemble id: " + TF)		
 			#if id_ == True:
-			elif line[0] == "P" or line[0] == "A" or line[0] == "C" or line[0] =="X" or line[0] == "D":
+			elif line[0] == "P" or line[0] == "A" or line[0] == "C" or line[0] =="X" or line[0] == "D" or line[0] == "N" or line[0] == "B":
 				continue
 			elif line[0] == "/":
 #				print("hier")
@@ -180,7 +180,7 @@ else:
 				T = []
 			else: #read matrix
 				line = line.split('\t')
-#				print(line)
+				#print(line)
 				A.append(float(line[1]))
 				C.append(float(line[2]))
 				G.append(float(line[3]))
