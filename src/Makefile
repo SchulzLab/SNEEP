@@ -1,16 +1,11 @@
 
 #sources
 SRC =  	Matrix_new.cpp \
-	differentialBindingAffinity.cpp \
-	determineSignificantHitsWithoutDifferentialBindingAffinity.cpp \
 	pvalue_copy.cpp  \
 	callBashCommand.cpp \
 	HandleInOutput.cpp \
 	differentialBindingAffinity_multipleSNPs.cpp \
-	differentialBindingAffinity_multipleSNPsSEMs.cpp \
-	sampleRandomRsIDs.cpp \
-	checkDistribution.cpp \
-	sampleSNPsGWASCatalog_Stitchit.cpp
+	sampleRandomRsIDs2.cpp \
 
 platform=$(shell uname -s)
 
@@ -22,16 +17,12 @@ CFLAGS =  -std=c++11  -Xpreprocessor -fopenmp
 LDFLAGS = -stdlib=libc++
 all: $(SRC) Makefile
 	$(CC) Matrix_new.cpp $(CFLAGS) $(LDFLAGS) -o Marix
-	$(CC) differentialBindingAffinity.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity
-	$(CC) determineSignificantHitsWithoutDifferentialBindingAffinity.cpp $(CFLAGS) $(LDFLAGS) -o determineSignificantHitsWithoutDifferentialBindingAffinity
 	$(CC) pvalue_copy.cpp $(CFLAGS) $(LDFLAGS) -o pvalue
 	$(CC) callBashCommand.cpp $(CFLAGS) $(LDFLAGS) -o callBashCommand
 	$(CC) HandleInOutput.cpp $(CFLAGS) $(LDFLAGS) -o HandleInOutput
 	$(CC) differentialBindingAffinity_multipleSNPs.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPs
-	$(CC) differentialBindingAffinity_multipleSNPsSEMs.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPsSEMs
 	$(CC) sampleRandomRsIDs2.cpp $(CFLAGS) $(LDFLAGS) -o randomRsIds_2.0
 	$(CC) checkDistribution.cpp $(CFLAGS) $(LDFLAGS) -o checkDistribution
-	$(CC) sampleSNPsGWASCatalog_Stitchit.cpp $(CFLAGS) $(LDFLAGS) -o sampleSNPsGWASCatalog_Stitchit
 	
 else
 
@@ -132,20 +123,13 @@ IFLAG = -I json/include/ # bedtools2/src/utils/driver/ bedtools2/src/utils/versi
 
 all: $(SRC) Makefile
 	$(CC) Matrix_new.cpp $(CFLAGS) $(LDFLAGS) -o Matrix
-	$(CC) differentialBindingAffinity.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity
-	$(CC) determineSignificantHitsWithoutDifferentialBindingAffinity.cpp $(CFLAGS) $(LDFLAGS) -o determineSignificantHitsWithoutDifferentialBindingAffinity
 	$(CC) pvalue_copy.cpp $(CFLAGS) $(LDFLAGS) -o pvalue
 	$(CC) callBashCommand.cpp $(CFLAGS) $(LDFLAGS) -o callBashCommand
 	$(CC) HandleInOutput.cpp $(CFLAGS) $(LDFLAGS) -o HandleInOutput
-	#$(CC) buffering.cpp $(CFLAGS) $(LDFLAGS) -o buffering $(INCLUDES_BEDTOOLS)
-	#$(CC) sampleRandomRsIDs.cpp $(CFLAGS_)     -o randomRsIds $(LFLAG) $(lFLAG) $(IFLAG) $(INCLUDES_BEDTOOLS)
 	$(CC) sampleRandomRsIDs2.cpp $(CFLAGS) -o randomRsIds_2.0 
-#	$(CC) differentialBindingAffinity_multipleSNPs.cpp $(CFLAGS) -o differentialBindingAffinity_multipleSNPs $(LFLAG) $(lFLAG) $(IFLAG) $(INCLUDES_BEDTOOLS)
 	$(CC) differentialBindingAffinity_multipleSNPs.cpp $(CFLAGS_) -o differentialBindingAffinity_multipleSNPs
-#	$(CC) differentialBindingAffinity_multipleSNPsSEMs.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPsSEMs
 	$(CC) getSNPInfo.cpp $(CFLAGS_)  -o getSNPInfo $(LFLAG) $(lFLAG) $(IFLAG)
 	$(CC) checkDistribution.cpp $(CFLAGS)  -o checkDistribution
-	$(CC) sampleSNPsGWASCatalog_Stitchit.cpp $(CFLAGS) $(LDFLAGS) -o sampleSNPsGWASCatalog_Stitchit
 
 endif
 

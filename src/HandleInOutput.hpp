@@ -33,6 +33,7 @@ class InOutput{
 	int CountEntriesFirstLine(string inputFile, char delim);
 	void checkIfSNPsAreUnique();
 	void parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed);
+	void readScaleValues(string scaleFile, unordered_map<string, double>& scales);
 
 	//getter
 	double getPvalue();
@@ -40,7 +41,7 @@ class InOutput{
 	string getFrequence();
 	string getFootprints();
 	//string getMutatedSequences();
-	string getMaxOutput();
+	bool  getMaxOutput();
 	string getActiveTFs();
 	string getREMs();
 	string getOutputAll();
@@ -69,6 +70,7 @@ class InOutput{
 	int getNumberThreads();
 	int getSeed();
 	int getMinTFCount();
+	string getScaleFile();
 
 	private: //glaube das sollte nicht private sein
 	int num_threads = 1; //-n
@@ -80,7 +82,7 @@ class InOutput{
 	string footprint = ""; //-f path to footprint file
 	string outputDir = "SNEEP_output/"; //-o
 	string allOutput =  ""; //-d 
-	string maxOutput =  ""; // -m
+	bool maxOutput =  false; // -m
 	//new
 	string activeTFs = ""; // -t path to geneExpression file
 	string REMs = ""; // -r bed-like REM file
@@ -110,6 +112,7 @@ class InOutput{
 	string dbSNPs = "";
 	int seed = 1;
 	int minTFCount = 0;
+	string scaleFile = "";
 };
 
 //construtor
@@ -125,7 +128,7 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:saf:mt:r:e:d:i:g:j:k:l:q:h")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:i:g:j:k:l:q:h")) != -1) {
        		switch (opt) {
 		case 'o':
 			outputDir = optarg;
@@ -147,10 +150,10 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			frequence = optarg;
 			cout << "-b frequency: " << frequence << endl;
 			break;
-	//	case 's':
-	//		mutatedSequences = outputDir + "mutatedSequences.txt";
-	//		cout << "-s mutatedSequences: " << mutatedSequences << endl;
-	//		break;
+		case 's':
+			scaleFile = optarg;
+			cout << "-s scaleFile: " << scaleFile << endl;
+			break;
 		case 'a':
 			allOutput = outputDir + "AllDiffBindAffinity.txt";
 			cout << "-a AllDiffBindAff: " << allOutput << endl;
@@ -160,8 +163,8 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			cout << "-f footprint/region file: " << footprint << endl;
 			break;
 		case 'm':
-			maxOutput = outputDir + "MaxDiffBindAffinity.txt";
-			cout << "-m maxDiffBindAffinity: " << maxOutput << endl;
+			maxOutput = true;
+			cout << "-m maxDiffBindAffinity: " << endl;
 			break;
 		case 't':
 			activeTFs = optarg;
@@ -262,8 +265,8 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-c p-value threshold diffBindAff: " << io.pvalue_diff << 
 	"\n#\t-b file of background freq: " << io.frequence << 
 	"\n#\t-f footprint/region file: " << io.footprint << 
-	//"\n#\t-s mutatedSequences: " << io.mutatedSequences << 
-	"\n#\t-m maxOutput: " << io.maxOutput << 
+	"\n#\t-s scaleFile: " << io.scaleFile << 
+	"\n#\t-m maxOutput: " << 
 	"\n#\t-t activeTFs: " << io.activeTFs << 
 	"\n#\t-r REMs: " << io.REMs <<
 	"\n#\t-a allDiffBindAffinities: " << io.allOutput <<  
@@ -476,10 +479,10 @@ void InOutput::callHelp(){
 	"-p pvalue for motif hits (default 0.05)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
 	"-b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequency.txt)\n" <<
-	//"-s file where all mutated sequences can be stored\n" <<
+	"-s file where the computed scales per motif are stored\n" <<
 	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
 	"-f additional footprint/open chromatin region file in bed file format\n" <<
-	"-m if flag is set, the  maximal differential binding affinity per SNP is stored in <outputDir>/MaxDiffBindingAffinity.txt\n"<<
+	"-m if flag is set, the  maximal differential binding affinity per SNP is printed\n"<<
 	"-t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID\texpression-value)\n" <<
 	"-d threshold TF activity (must be given if -t is given)\n"<<
 	"-e tab-seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)\n"<<
@@ -702,6 +705,29 @@ void InOutput::parseRandomSNPs(string inputFile, string REMsOverlappFile, string
 	return;// counterSNPs;
 }
 
+
+
+
+void InOutput::readScaleValues(string scaleFile, unordered_map<string, double>& scales){
+
+	string line = "";
+	string motif = "";
+	double scale = 0.0;
+	string skip = "";
+	ifstream input(scaleFile); //open scaleFile
+	getline(input, line, '\n'); // skip header
+	while (getline(input, line, '\n')){
+		motif = getToken(line, '\t');
+		skip = getToken(line, '\t'); // scale newton
+		skip = getToken(line, '\t'); // MSE
+		scale = stod(getToken(line, '\t'));
+		scales[motif] = scale;
+	}
+	input.close();
+	return;
+}
+
+
 //getter
 double InOutput::getPvalue(){
 	return this->pvalue;
@@ -718,12 +744,15 @@ string InOutput::getFrequence(){
 string InOutput::getFootprints(){
 	return this->footprint;
 }
+string InOutput::getScaleFile(){
+	return this->scaleFile;
+}
 
 //string InOutput::getMutatedSequences(){
 //	return this->mutatedSequences;
 //}
 
-string InOutput::getMaxOutput(){
+bool InOutput::getMaxOutput(){
 	return this->maxOutput;
 }
 

@@ -59,7 +59,7 @@ double differentialBindingAffinityBackground(double first_elem, double second_el
 double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round);
 string forwardOrReverse(int distance_); //determines on which strand the motif bindes
 vector<string> parseHeader(string header, string delim); //parse the header of the fasta file
-void writeHeadersOutputFiles(bool writeOutput, bool writeMaxOutput, string& currentOutput, string& currentMaxOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
+void writeHeadersOutputFiles(bool writeOutput,  string& currentOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
 void determineMAFsForSNPs(string SNPsFile,vector<double>& MAF);
 string getToken(string& line, char delim);
 bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b);
@@ -200,16 +200,17 @@ int main(int argc, char *argv[]){
 	}
 	pro_seq.close(); // close fasta file
 
-	bool writeOutput = false, writeOutputMax = false; 
-	ofstream output, outputMax;
+	bool writeOutput = false;
+	bool outputMax =  io.getMaxOutput();
+	ofstream output;
 	if (io.getOutputAll() != ""){
 		writeOutput = true;
 		output = io.openFile(io.getOutputAll(), false);
 	}
-	if (io.getMaxOutput() != ""){
-		outputMax = io.openFile(io.getMaxOutput(), true);
-		writeOutputMax = true;
-	}
+	//if (io.getMaxOutput() != ""){
+	//	outputMax = io.openFile(io.getMaxOutput(), true);
+	//	writeOutputMax = true;
+	//}
 
 	int numMotifs = PWM_files.size();
 	cout << "numMotifs: " << numMotifs << endl;
@@ -260,7 +261,7 @@ int main(int argc, char *argv[]){
 		//write parts of the output
 		string currentOutput = "", currentMaxOutput = "", currentResult = "";
 		if (!mutSeq.empty()){//if mutSeq is not a fit, the stringis empty
-			writeHeadersOutputFiles(writeOutput, writeOutputMax, currentOutput, currentMaxOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
+			writeHeadersOutputFiles(writeOutput, currentOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
 		}
 		//#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 		for(int j = 0; j < numMotifs; ++j){ // iterate over all given motifs
@@ -325,8 +326,10 @@ int main(int argc, char *argv[]){
 						}
 					}
 				}
-				//cout << maxLog << "\t" << lenMotif << "\t" << motif << endl;
-			
+
+				if (outputMax == true){
+					cout << maxLog << "\t" << lenMotif << "\t" << motif << endl;
+				}
 				// determined maxLog pro motifs (pro SNP)
 				overallResultMax.push_back(make_tuple(maxDiffBinding, motif)); //add  pvalue to overallResultMAx
 				string value = "";
@@ -420,7 +423,7 @@ int main(int argc, char *argv[]){
 	cout << "rank after correction: " << rank << endl; 
 
 	resultFile.close();
-	outputMax.close();
+	///outputMax.close();
 	output.close();
 
 	//open info file
@@ -1199,7 +1202,7 @@ vector<string> parseHeader(string header, string delim){
 	return result;
 }
 
-void writeHeadersOutputFiles(bool writeOutput, bool writeMaxOutput, string& currentOutput, string& currentMaxOutput, string header, string seq, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr){
+void writeHeadersOutputFiles(bool writeOutput, string& currentOutput,  string header, string seq, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr){
 
 	string var1 = splittedHeader[1]; //cast to char
 	string var2 = splittedHeader[2]; //cast to char
@@ -1211,9 +1214,9 @@ void writeHeadersOutputFiles(bool writeOutput, bool writeMaxOutput, string& curr
 		currentOutput.append("\n#\tinfo: " + header + "\n#\twildtyp: " + seq + "\n" + "#\tmutated: " +  mutSeq + "\n\n.\tpos\tBindAff_Var1\tBindAff_Var2\tlog(div)\tpvalue_diffBindAff\n");
 	}
 	//header output_max
-	if (writeMaxOutput){
-		currentMaxOutput.append("snp\t" + chr+ ":" + to_string(pos) + "-" + to_string(pos + 1)+ '\t' +  var1 +  '\t' +  var2 +  "\n.\tmotif\tpos\tBindAff_Var1\tBindAff_Var2\tlog(div)\tpvalue_diffBindAff\n");
-	}
+	//if (writeMaxOutput){
+	//	currentMaxOutput.append("snp\t" + chr+ ":" + to_string(pos) + "-" + to_string(pos + 1)+ '\t' +  var1 +  '\t' +  var2 +  "\n.\tmotif\tpos\tBindAff_Var1\tBindAff_Var2\tlog(div)\tpvalue_diffBindAff\n");
+	//}
 }
 		/*vector<double> keys;
 		//int numSNPs = 0;
