@@ -1,6 +1,7 @@
 # SNEEP: SNP exploration and functional analysis using epigenetic data
 
-SNEEP is a method that helps to prioritize GWAS SNPs to study the impact of genetically induced transcriptional mis-regulation in human diseases and other phenotypes.
+SNEEP is metho to identify regulatry non-coding SNPs that modify the binding sites of Transcription Factors (TFs) for large SNP sets. SNEEP is based on the statistical approach introduced in our paper 'A statistical approach to identify regulatory DNA variants' (preprint:  ). 
+
 
 In more detail, our SNEEP approach prioritizes SNPs as targets of one or several Transcription Factors (TFs) and infers whether a gene’s expression is influenced by the change in the TF binding behavior. To do so, we 
 -	evaluate the impact of a SNP on a potential TF binding site by calculating a probabilistic differential binding score for the difference in TF binding affinity in wild type versus a mutated sequence. 
