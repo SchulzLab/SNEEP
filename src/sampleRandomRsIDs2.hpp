@@ -127,7 +127,7 @@ vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_c
 	}
 	//sample random SNPs for the last bin
 	if (MAF_counter.count(bin) >0){ //checks if the bin exist in MAF_counter
-		//cout << "bin " << bin << endl;
+	//	cout << "bin " << bin << endl;
 		counter = MAF_counter[bin];
 		size = currentSNPs.size();
 		for(int r = 0; r < rounds; ++r){
@@ -146,6 +146,7 @@ vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_c
 // determine random SNPs from current bin
 */
 void rsIDsampler::sampleSNPs(int counter, string outputFile, vector<string>& SNPs, int seed, int size, string histogramFile){
+
 
 	mt19937 generator(seed); // seed muss fuer jeden thread ein andere sein 	
 	uniform_int_distribution<int> distribution(0, size -1); //specifiy distribution of the random number

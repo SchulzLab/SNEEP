@@ -9,7 +9,8 @@ SRC =  	Matrix_new.cpp \
 	differentialBindingAffinity_multipleSNPs.cpp \
 	differentialBindingAffinity_multipleSNPsSEMs.cpp \
 	sampleRandomRsIDs.cpp \
-	checkDistribution.cpp
+	checkDistribution.cpp \
+	sampleSNPsGWASCatalog_Stitchit.cpp
 
 platform=$(shell uname -s)
 
@@ -30,6 +31,7 @@ all: $(SRC) Makefile
 	$(CC) differentialBindingAffinity_multipleSNPsSEMs.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPsSEMs
 	$(CC) sampleRandomRsIDs2.cpp $(CFLAGS) $(LDFLAGS) -o randomRsIds_2.0
 	$(CC) checkDistribution.cpp $(CFLAGS) $(LDFLAGS) -o checkDistribution
+	$(CC) sampleSNPsGWASCatalog_Stitchit.cpp $(CFLAGS) $(LDFLAGS) -o sampleSNPsGWASCatalog_Stitchit
 	
 else
 
@@ -143,6 +145,7 @@ all: $(SRC) Makefile
 #	$(CC) differentialBindingAffinity_multipleSNPsSEMs.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPsSEMs
 	$(CC) getSNPInfo.cpp $(CFLAGS_)  -o getSNPInfo $(LFLAG) $(lFLAG) $(IFLAG)
 	$(CC) checkDistribution.cpp $(CFLAGS)  -o checkDistribution
+	$(CC) sampleSNPsGWASCatalog_Stitchit.cpp $(CFLAGS) $(LDFLAGS) -o sampleSNPsGWASCatalog_Stitchit
 
 endif
 

@@ -8,6 +8,7 @@
 #include <bitset>
 #include <ctime> //for time
 #include <chrono> //for time
+#include <iomanip>  // for precision
 
 //own classes
 #include "pvalue_copy.hpp"
@@ -33,11 +34,13 @@
 
 using namespace std;
 
+
 //------------------------------
 //Global variables default values 
 int COMPLEMENT[] = {0,4,0,3,1,0,0,2,0,0,0,0,0,0,5};// considers also N
 int POSITION[] = {0,1,0,2,4,0,0,3,0,0,0,0,0,0,5}; // considers also N 
-double EPSILON = 0.001;
+double EPSILON = 0.001; // accuracy of the PWMs, EPSILON which is added to zeor PWM entries
+vector<double> SCALES = {0,0,0,0,0,0, 0.5099464874518722, 0.4667031501892002 , 0.433783753309124 , 0.40715127687298763, 0.3826005840545816 , 0.3787599566935292, 0.34774610222605595 , 0.34514695643150634,  0.334825561698675, 0.31438987031152266  , 0.3011626326230248, 0.2917197382561486, 0.2889961985763163, 0.2834156088976374, 0.2657082044936282, 0.28252991969868096, 0.2327379244822218, 0.2565442603258892 , 0.24312782127390908 , 0,0,0.22659238366923132 , 0,0,0,0,0,0,0.2116550921968819, 0.21663464972735508}; // from motif length 6 to 35 
 
 //functions
 vector<string> readDirectory(const char *path); //stores all files of a directory
@@ -51,17 +54,25 @@ string getChr(string mut_pos); //return the chr of  chr:start-end
 int getSeqStart(string header); //same but return the start
 int getSeqEnd(string header); //return the end
 string createMutatedSeq(string header, string& seq, vector<string>& splittedHeader); //determines the mutated sequence based on the given SNP
-double cdf_laplace(double location, double scale, double value); //determine laplace distribution
-double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_); //calculates differential binding affinity
+double cdf_laplace(double my, double beta, double value); //determine laplace distribution
+double differentialBindingAffinityBackground(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers);
+double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round);
 string forwardOrReverse(int distance_); //determines on which strand the motif bindes
 vector<string> parseHeader(string header, string delim); //parse the header of the fasta file
 void writeHeadersOutputFiles(bool writeOutput, bool writeMaxOutput, string& currentOutput, string& currentMaxOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
 void determineMAFsForSNPs(string SNPsFile,vector<double>& MAF);
 string getToken(string& line, char delim);
-//bool sortbyth(const tuple<double, string, double>& a, const tuple<double, string, double>& b);
 bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b);
+bool sortby(const tuple<double, string , string, string>& a, const tuple<double,string,  string, string>& b);
+double cdf_laplace_abs_max(double scale, double numberKmers, double value);
 
 int main(int argc, char *argv[]){
+
+	
+	//to output doubles whith a total of 17 digits
+	typedef numeric_limits< double > dbl;
+	std::cout.precision(dbl::max_digits10 - 1);
+
 
 	//handle input 
 	InOutput io; //create object
@@ -93,14 +104,13 @@ int main(int argc, char *argv[]){
 	unordered_map<string, vector<string>> SNPsToOverlappingREMs;
 	if (REMs != ""){
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\tversion\tSNP_strand\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\n";
 		string output = io.getOverlappingREMs();
-		//bc.intersect(REMs, SNPFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 		bc.intersect(REMs, SNPFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 	}else{
 		
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\tSNP_strand\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\n";
 	}
 	//determine overlapping peaks
 	string footprintFile = io.getFootprints();
@@ -126,10 +136,24 @@ int main(int argc, char *argv[]){
 	bc.mkdir(io.getPFMsDir(), "-p", false); //create dir
 	bc.rm(io.getPFMsDir()); // remove PWMs if there are any
 	if (activeTFs != ""){
-		bc.callPythonScriptCheckActiveMotifs(io.getSourceDir(), io.getActiveTFs(), io.getPFMs(), io.getPFMsDir(), io.getEnsembleIDGeneName(), io.getActivityThreshold()); 
+		bc.callPythonScriptCheckActiveMotifs(io.getSourceDir(), io.getActiveTFs(), io.getPFMs(), io.getPFMsDir(), io.getEnsembleIDGeneName(), io.getActivityThreshold(), io.getOutputDir()); 
 	}else{
-		bc.callPythonScriptSplitPFMs(io.getSourceDir(), io.getPFMs(), io.getPFMsDir()); 
+		bc.callPythonScriptSplitPFMs(io.getSourceDir(), io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
+		//for snp selex data (see also callBashCommands for more details) 
+		//bc.callPythonScriptSplitPFMsSELEX(io.getSourceDir(), io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
+		
 	}
+	bool scalesPerMotifs = false;
+	unordered_map<string, double> scales; 
+	if (io.getScaleFile() != ""){
+		io.readScaleValues(io.getScaleFile(),scales);
+		scalesPerMotifs = true;
+	}
+
+//	for(auto& i : scales){
+//		cout << i.first << " " << i.second << endl;
+//	}
+
 	//convert PFMs internally to PWMs
 	vector<string> PWM_files = readDirectory(io.getPFMsDir().c_str()); //stores names of all pwm files
 	vector<double> freq = readFrequence(io.getFrequence()); //TODO datenspezifisch bestimmen gibts da ein ebdtool function?
@@ -145,7 +169,7 @@ int main(int argc, char *argv[]){
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for(int j = 0; j < PWM_files.size(); ++j){ // iterate over all given motifs
 		motif = PWM_files[j].substr(0 , PWM_files[j].size() -4); // set motif
-//		cout << "motif name: " << motif << endl;
+		//cout << "motif name: " << motif << endl;
 		pvalue  pvalue_obj(PWMs[j].ncol(), EPSILON); // EPSILON entspricht accuracy !!! 
 		vector<double> pvalues = pvalue_obj.calculatePvalues(PWMs[j], freq, transition_matrix);
 		#pragma omp critical (storePvalues)
@@ -161,8 +185,9 @@ int main(int argc, char *argv[]){
 	string helper2 (105, 'a'); //sequences is of length 100
 	vector<string> headers (numberSNPs, helper1); //to avoid reallocation
 	vector<string> sequences (numberSNPs, helper2);
-	unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
-	unordered_map<double, double> helper_preLog;
+	//unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
+
+	vector<unordered_map<double, double>> vec_overall_preLog;
 
 	int sigEntries = 0, sigEntriesOverlappingREM = 0;
 
@@ -187,43 +212,57 @@ int main(int argc, char *argv[]){
 	}
 
 	int numMotifs = PWM_files.size();
+	cout << "numMotifs: " << numMotifs << endl;
 	vector<string> motifNames; 
 	vector<int> lenMotifs;
 	for(int i = 0; i < numMotifs; ++i){ //store motif names only once
 		motifNames.push_back(PWM_files[i].substr(0 , PWM_files[i].size() -4)); //set motif
 		lenMotifs.push_back(PWMs[i].ncol());
 	}	
-	//cout << "before parallel loop" << endl;
 	//determine average counts for TFs, genes and REMs
 	unordered_map<string, double> realData_TFs;
 	for (auto& elem : motifNames){ //initialize the TF map
 		realData_TFs[elem] = 0;
 	}
+
+	vector<tuple<double,string, string, string>>  resultAllSNPs; // pvalue , motifName, outputPart1 outputPart2
+	int rounds = io.getRounds();
+
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for (int i = 0; i <numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
+		unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
 		//define variables
 		vector<tuple<double, string>> overallResultMax; //stores max result
-		//vector<tuple<double, string, double>> overallResultMax; //stores max result
-		unordered_map<string, double> TFBindingValues;
+		//unordered_map<string, double> TFBindingValues;
 		unordered_map<string, string> helperOverallResult;
 		string chr = "",  mutSeq = "", direction = "", wildtypeSeq = "", genes = "", REMs_ = ""; //stores if the SNP annotation was for the forward or the reversed strand
 		int posMut = 0, pos = 0; // position of the snp within the genome an relative within the given sequence
 
 		//create mutated sequence
 		vector<string> splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
-		
 		wildtypeSeq = sequences[i];
 		mutSeq = createMutatedSeq(headers[i], wildtypeSeq, splittedHeader); // check if all SNPs are fitting to the reference this is done within create mutated seq (also check for reverse strand)
 		pos = getMutatedPos(splittedHeader[0]);
 		//cout << "pos: " << pos << endl;
 		chr = getChr(splittedHeader[0]);
+		//cout << "chr: " << chr << endl;
 		posMut = 50; // since we considere 50 bp upstream and downstream the snp
+
+		// store parts of the output that is same per snp in the following to avoid multiple access to splittedHeader
+		string part1 = splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5];
+		string part2 = "";
+		if (REMs == ""){
+			part2 = splittedHeader[6] + '\n';
+		}else{
+			part2 = splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n';
+		}
 		
 		//write parts of the output
 		string currentOutput = "", currentMaxOutput = "", currentResult = "";
 		if (!mutSeq.empty()){//if mutSeq is not a fit, the stringis empty
 			writeHeadersOutputFiles(writeOutput, writeOutputMax, currentOutput, currentMaxOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
 		}
+		//#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 		for(int j = 0; j < numMotifs; ++j){ // iterate over all given motifs
 			int sigHit = 0; //for MatrixSigHits
 				
@@ -241,6 +280,7 @@ int main(int argc, char *argv[]){
 			motif = motifNames[j]; //set motif
 			//cout << "motif: " << motif << endl;
 			int lenMotif = lenMotifs[j];
+			//cout << lenMotif << endl;
 			vector<double> pvalues = all_pvalues[motif]; //pvalues for current motif
 
 			//calculate probabiblity for sequences of the current TF	
@@ -251,8 +291,6 @@ int main(int argc, char *argv[]){
 			if (probProSeq(PWMs[j], mutSeq, pvalues, io.getPvalue(), posMut, secondSeq) == 1){ //second_seq contain mutated sequence
 				sigHit = 1;
 			}
-			//determine differential binding affinity for all sig kmers in wildtype and mutated seq
-			vector <pair<double, int>> allDiffBinding;	
 			//int maxDiff_index = 0;
 			if (sigHit == 1){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
 				for (int l = 0; l < firstSeq.size(); ++l){ 
@@ -261,8 +299,15 @@ int main(int argc, char *argv[]){
 						posSigHit = pos + floor(l/2); //deterime position of the hit	
 
 						//determine differntial binding
-						diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_);
-						allDiffBinding.push_back(make_pair(diffBinding, l));
+						if (scalesPerMotifs == true){
+							//cout << motif << "\t" << lenMotif << "\t"<< scales[motif] << endl;
+							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_, scales[motif], lenMotif*2);
+							diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, log_, scales[motif], lenMotif*2, rounds);
+						}else{
+							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_, SCALES[lenMotif], lenMotif*2);
+							diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, log_, SCALES[lenMotif], lenMotif*2, rounds);
+						}
+						//cout <<   log_ << "\t" << lenMotif << "\t" << motif << endl;
 						//stores info maximal diff binding affinity
 						if (diffBinding <= maxDiffBinding){// and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
 							maxDiffBinding = diffBinding;
@@ -280,112 +325,100 @@ int main(int argc, char *argv[]){
 						}
 					}
 				}
-				//adjust pvalue using benjamini hochberg method
-				/*sort(allDiffBinding.rbegin(), allDiffBinding.rend()); //sort p-values
-				double number_kmers = allDiffBinding.size(); 
-				double rank = allDiffBinding.size(); 			
-				double previous_pvalue = 1.0;
-				//double fdr= io.getPvalueDiff(); // assumed false discorvery rate
-				double pvalue_cutoff = 0.0;
-				vector<double> corrected_pvalues;
-				for (auto p_val_pair : allDiffBinding){
-					double p_val = p_val_pair.first;
-					double helper = min(p_val*(number_kmers/rank), previous_pvalue);
-					//cout << "rank: "  << rank << " pval: " << p_val <<  " numberKmers: " << number_kmers <<  " pvalue: " << p_val <<  " corrected p-value: " << helper  << endl;
-					corrected_pvalues.push_back(helper);
-					previous_pvalue = helper;
-					rank--;
-				}
-	
-				//ouput maximal binding affinity for the current seq
-				auto index = distance(allDiffBinding.begin(), find_if(allDiffBinding.begin(), allDiffBinding.end(), [&](const pair<double, int> pair) { return pair.second == maxDiff_index; })); //get position of maxDiffBinding in the sorted array
-				double corrected_pvalue = corrected_pvalues[index]; // based on index we can figure out the corrected pvalue
-				//cout << "index: " << index << "corrected+pvalue: " << corrected_pvalue << endl;
-				*/
-				//overallResultMax.push_back(make_tuple(maxDiffBinding, motif, corrected_pvalue)); //add corrected pvalue to overallResultMAx
-				overallResultMax.push_back(make_tuple(maxDiffBinding, motif)); //add corrected pvalue to overallResultMAx
+				//cout << maxLog << "\t" << lenMotif << "\t" << motif << endl;
+			
+				// determined maxLog pro motifs (pro SNP)
+				overallResultMax.push_back(make_tuple(maxDiffBinding, motif)); //add  pvalue to overallResultMAx
 				string value = "";
 				if (maxOrientation  == "(f)"){
-					//value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding) + '\t' + to_string(corrected_pvalue);
-					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding);
+					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t';
 				}else{
-					//value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding) +  '\t' + to_string(corrected_pvalue);
-					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t' +  to_string(maxDiffBinding);
-					
+					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t';	
 				}
+
 				helperOverallResult[motif] = value;
-				TFBindingValues[motif] = maxLog;
 			}else{
-				overallResultMax.push_back(make_tuple(1.0, motif)); //we need all motifs to  fdr corrected the pvalue
+				//cout << "hier" << endl;
+				if (io.getPvalueDiff() == 1){ //for ASB/non-ASB testing (we need all snps in the output file) 
+
+					
+					#pragma omp critical 
+					resultFile << splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + motif + "\t-\t-\t-\t0.0\t0.0\t0.0\t1.0\t1.0\t.\t.\t.\t.\t.\t.\t.\t.\t.\t.\n"; 
+
+				}
 			}
 		}
 	
-		//sort overall_result per seq and all TFs
+		//sort overall_result per snp and all TFs
 		string m = "";
 		double p = 0.0;
 		double c_p = 0.0; //stores fdr corrected pvalue
-		//sort(overallResultMax.begin(), overallResultMax.end());
 		sort(overallResultMax.begin(), overallResultMax.end(), sortbyth);
-	//	cout << overallResultMax.size() << endl;
-	//	for (int k = 0; k < overallResultMax.size(); ++k){
-	//		cout << "original pvalue " << get<0>(overallResultMax[k]) << " motif: " << get<1>(overallResultMax[k]) << " corrected pvalue: " << get<2>(overallResultMax[k]) << endl;
-	//	}
-		//adjust pvalue
-		double number_motifs = overallResultMax.size(); 
-		double rank = overallResultMax.size(); 			
-		double previous_pvalue = 1.0;
+		//cout << overallResultMax.size() << endl;
 	
-		bool sigEntriesOnce = true;// necessary to count the sig entrie only once even if there are more than on TF affected
-		bool overlappingREMsOnce = true; //same here
-		for (int k = 0; k < overallResultMax.size(); ++k){
-			p = get<0>(overallResultMax[k]); //pvalue
+		for (int k = 0; k < overallResultMax.size(); ++k){ // k is the number of motifs -1 (starts from zero)
+			p = get<0>(overallResultMax[k]); //pvalue as double
 			m = get<1>(overallResultMax[k]); //motif name
-			//c_p = get<2>(overallResultMax[k]);
-			double helper = min(p*(number_motifs/rank), previous_pvalue);
-			//double helper = p*number_motifs;
-			//cout << "rank: "  << rank << " pval: " << p <<  "numbermotifs: " << number_motifs <<  " corrected p-value: " << helper  << endl;
-			previous_pvalue = helper;
-			rank--;
-
-			//if (p <= io.getPvalueDiff()){
-			//if (c_p <= io.getPvalueDiff()){
-			if (helper <= io.getPvalueDiff()){
-				#pragma omp critical
-				realData_TFs[m]+=1;// count number of TF hits seen in original data
-				if (sigEntriesOnce == true){
-					sigEntries+=1;
-					sigEntriesOnce = false;
-				}
-				//cout << "size splitted header: " << splittedHeader.size() << endl;
-				//cout << splittedHeader[0] << '\t' << splittedHeader[1] << '\t' << splittedHeader[2] << '\t' << splittedHeader[3] << '\t' <<  splittedHeader[4] << '\t' << splittedHeader[5] << '\t' << m << '\t' << helperOverallResult[m] << '\t' << splittedHeader[6]<< endl;
-				if(writeOutputMax){
-					currentMaxOutput.append(to_string(k+1) + '\t' + m + '\t' + helperOverallResult[m] + '\n');
-				}
-				if (REMs == ""){
-					//resultFile << splittedHeader[0] << '\t' << splittedHeader[1] << '\t' << splittedHeader[2] << '\t' << splittedHeader[3] << '\t' << splittedHeader[4] << '\t'<< splittedHeader[5] << '\t' << m << '\t' <<  helperOverallResult[m] << '\t' << splittedHeader[6] << '\n';
-					//currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + splittedHeader[6] + '\n');
-					currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + to_string(helper) + '\t' + splittedHeader[6] + '\n');
-				}else{
-					if (splittedHeader[7] != "."){
-						if (overlappingREMsOnce == true){
-							sigEntriesOverlappingREM += 1;
-							overlappingREMsOnce = false;
-						}
-					}
-
-					currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' +  to_string(helper) + '\t'  + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n');//'\t' << splittedHeader[16] << "\t" << splittedHeader[17] << '\n'; 
-					//currentResult.append(splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + m + '\t' +  helperOverallResult[m] + '\t' + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n');//'\t' << splittedHeader[16] << "\t" << splittedHeader[17] << '\n'; 
-				}
-			}	
+				
+			#pragma omp critical 
+			//resultFile << part1 << '\t' << motif << '\t' << value   << std::scientific << maxDiffBinding << "\tneedToBeComputeds\t" << part2;
+			resultAllSNPs.push_back(make_tuple( p,m,  part1 + '\t' + m + '\t' +  helperOverallResult[m],  part2 ));
 		}
+		
+		if (writeOutput){ // and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
+			#pragma omp critical 
+			output << currentOutput;
+		}
+
+		// add preLog to overall_preLog
 		#pragma omp critical 
-		outputMax << currentMaxOutput;
-		#pragma omp critical 
-		output << currentOutput;
-		#pragma omp critical 
-		resultFile << currentResult;
+		vec_overall_preLog.push_back(preLog);
 
 	}
+
+
+	//sort resultAllSNPs based on p-value 
+	sort(resultAllSNPs.begin(), resultAllSNPs.end(),sortby);
+	//check sorting ;
+	//for (auto& elem : resultAllSNPs){ // get vector per entry
+	//	cout << to_string(get<0>(elem)) + '\t' + get<1>(elem)<< endl;
+	//}
+
+	//compute fdr	
+	double snpsXmotifs = numMotifs * numberSNPs; 
+	cout << "number of tests: "  << snpsXmotifs << endl;
+	double rank = resultAllSNPs.size(); 
+
+	cout << "rank bevor correction: " << rank << endl;
+	double previous_pvalue = 1.0;
+
+	//bool sigEntriesOnce = true;// necessary to count the sig entrie only once even if there are more than on TF affected
+	//bool overlappingREMsOnce = true; //same here
+
+	for (auto& elem : resultAllSNPs){ // get vector per entry
+	
+		//compute fdr
+		double p = get<0>(elem);
+		string m = get<1>(elem);
+	//	if (sigEntriesOnce == true){
+	//		sigEntries+=1;
+	//		sigEntriesOnce = false;
+	//	}
+		double helper = min(p*(snpsXmotifs/rank), previous_pvalue);
+	//	cout << get<1>(elem) << "\tp-value:\t" << p << "\tcorrected pvalue\t" << helper << "\trank\t" << rank << "\tsnpsXmotifs/rank\t"<< snpsXmotifs/rank << endl;
+		previous_pvalue = helper;
+		rank--;
+		//if (helper <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ //cutoff based on fdr corrected pvalue
+		// for jayas analysis
+		if (p <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ // cutoff based on not fdr corrected pvalue for Jayas data (also for background sampling)
+			#pragma omp critical
+			realData_TFs[m]+=1;// count number of TF hits seen in original data
+
+			resultFile << get<2>(elem) << std::scientific << p << '\t' << std::scientific << helper << '\t' << get<3>(elem); 
+		}
+	}
+	cout << "rank after correction: " << rank << endl; 
+
 	resultFile.close();
 	outputMax.close();
 	output.close();
@@ -393,18 +426,13 @@ int main(int argc, char *argv[]){
 	//open info file
 	info = io.openFile(io.getInfoFile(), true); //open info file
 
-	info << "!\tsigEntryOverlappingREMs: " << sigEntriesOverlappingREM << endl; //write number of entries which are significant and overlap with a REM
-	info << "!\tsigOnes: " << sigEntries << endl; // write number of entries which are significant
+	//info << "!\tsigEntryOverlappingREMs: " << sigEntriesOverlappingREM << endl; //write number of entries which are significant and overlap with a REM
+	//info << "!\tsigOnes: " << sigEntries << endl; // write number of entries which are significant
 
 	//write number motifs to output file 
 	info << "!\tnumMotifs: " << numMotifs << endl; // number of used motisf
 
-	//add values to preLog
-	for(auto& elem : helper_preLog){
-		preLog[elem.first] = elem.second;
-	}
-	helper_preLog.clear(); //empty helper_preLog
-
+	
 	
 	//write TFs and co to files
 	string outputDir = io.getOutputDir();
@@ -423,8 +451,18 @@ int main(int argc, char *argv[]){
 	}
 	outputTFs << '\n';
 	//Randomly sample SNPs
-	int rounds = io.getRounds();
 	if (rounds > 0){
+	
+		//add values to preLog
+		cout << "add computed log values to overall_preLog" << endl;
+		unordered_map<double, double> overall_preLog; 
+		for(auto& elem : vec_overall_preLog){
+			for(auto& e : elem){
+				overall_preLog[e.first] = e.second;
+			}
+		}
+		vec_overall_preLog.clear(); //empty helper_preLog
+
 		cout << "start random sampling" << endl;
 
 
@@ -447,31 +485,23 @@ int main(int argc, char *argv[]){
 		cout << "number TFs: " << numMotifs << endl; 
 		cout << "number TFs considered background sampling: " << randomSampling_numMotifs << endl; 
 
-/*		cout << "PWMs: " << endl;
-		for(auto& elem : randomSampling_PWMs){
-			cout << elem << endl;
-		}
-		cout << "motifNamess: " << endl;
-		for(auto& elem : randomSampling_motifNames){
-			cout << elem << endl;
-		}
-		cout << "lenMotifss: " << endl;
-		for(auto& elem : randomSampling_lenMotifs){
-			cout << elem << endl;
-		}*/
-	
 		//initialize variables
 		vector<double> MAF;
 		unordered_map<double, int> MAF_counter;
 		double pvalue = io.getPvalue(), pvalueDiff = io.getPvalueDiff();
-		string randomDir = outputDir + "/sampling/";
+		string randomDir = outputDir + "sampling";
 		bc.mkdir(randomDir, "-p" , false);
 		determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
 		sort(MAF.begin(), MAF.end(), std::less<double>()); //sort MAF with default operation <
 
 		rsIDsampler s(0.01, io.getdbSNPs(), MAF, bc); //initialize snp sampler
 		MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
+		//for (auto& elem : MAF_counter){ // get vector per entry
+		//	cout << elem.first << " " << elem.second << endl;
+		//}
+		cout << "before sampling" << endl;
 		vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSourceDir(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+		cout << "after sampling" << endl;
 
 		string SNP_file = "", SNPs_overlappingREMs = "", bedFile = "", fastaFile = "", currentRound = "";
 		ofstream randomResult;
@@ -506,6 +536,7 @@ int main(int argc, char *argv[]){
 			//read current fasta file
 		}
 		for (int r = 0; r < rounds; r++){
+		//for (int r = 628; r < rounds; r++){
 			cout << "round: " << r << endl;
 
 			unordered_map<string, double> TF_counts; //TF counts need to be count for every round seperatly
@@ -529,8 +560,10 @@ int main(int argc, char *argv[]){
 			fasta.close(); // close fasta file
 	//		cout<< "after read fasta" << endl;
 			
+			vector<tuple<double,string, string, string>>  currentResultAllSNPs; 
 			#pragma omp parallel for  num_threads(io.getNumberThreads())
 			for (int i = 0; i < numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
+				unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
 				
 				string currentResult = "";
 				//define variables
@@ -587,8 +620,17 @@ int main(int argc, char *argv[]){
 						
 									current_posSigHit = current_pos + floor(l/2); //deterime position of the hit	
 
+
+									// TODO: adapte for scale -> done but check if it works 
 									//determine differntial binding
-									current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_);
+									if (scalesPerMotifs == true){
+										//cout << "motif: " << current_motif << " corresponding scale: " << scales[current_motif] << endl;
+										//current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_, scales[current_motif], lenMotif*2);
+										current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l],overall_preLog, preLog,  current_log_, scales[current_motif], lenMotif*2);
+									}else{
+										//current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_, SCALES[lenMotif], lenMotif*2);
+										current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l], overall_preLog, preLog,  current_log_, SCALES[lenMotif], lenMotif*2);
+									}
 									//current_allDiffBinding.push_back(make_pair(current_diffBinding, l));
 								
 									//stores info maximal diff binding affinity
@@ -615,52 +657,71 @@ int main(int argc, char *argv[]){
 							}
 							current_helperOverallResult[current_motif] = value;
 							current_TFBindingValues[current_motif] = current_maxLog;
-						}else{
-							current_overallResultMax.push_back(make_tuple(1.0, current_motif)); //we need all motifs to  fdr corrected the pvalue
-						}
+						}//else{
+						//	current_overallResultMax.push_back(make_tuple(2.0, current_motif)); //we need all motifs to  fdr corrected the pvalue
+						//}
 					}
 					//sort overall_result per seq and all TFs and store maximal one
 					string m = "";
 					double p = 0.0;
-					//double c_p = 0.0;
-					//adjust pvalue
-					double number_motifs = current_overallResultMax.size(); 
-					double rank = current_overallResultMax.size(); 			
-					double previous_pvalue = 1.0;
 
 					//sort(current_overallResultMax.begin(), current_overallResultMax.end());
 					sort(current_overallResultMax.begin(), current_overallResultMax.end(), sortbyth);
 					for (int k = 0; k< current_overallResultMax.size(); ++k){
 						p = get<0>(current_overallResultMax[k]); //pvalue
 						m = get<1>(current_overallResultMax[k]); //motif name
-						//c_p = get<2>(current_overallResultMax[k]); //motif name
-						//fdr correction	
-	
-						double helper = min(p*(number_motifs/rank), previous_pvalue);
-						//double helper = p*number_motifs;
-						//cout << "random rank: "  << rank << " pval: " << p <<  "numbermotifs: " << number_motifs <<  " corrected p-value: " << helper  << endl;
-						previous_pvalue = helper;
-						rank--;
 
-						//if (p <= pvalueDiff){
-						//if (c_p <= pvalueDiff){
-						if (helper <= pvalueDiff){
+						if (REMs == ""){
+							//currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + to_string(helper) + '\t'  + current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n');
+							//allows only one thread to write in the output 
 							#pragma omp critical
-							TF_counts[m] += 1; //count per round number of sig. TF hits
-
-							if (REMs == ""){
-								currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + to_string(helper) + '\t'  + current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n');
-							}else{
-								currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m] + '\t' + to_string(helper) + '\t' +  current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n');
-							}
+							currentResultAllSNPs.push_back(make_tuple(p, m,current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m ,  current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n'));
+						}else{
+							//allows only one thread to write in the output 
+							#pragma omp critical
+							currentResultAllSNPs.push_back(make_tuple(p, m, current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m], current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n'));
 						}
+						//}
 					}
 					//allows only one thread to write in the output 
-					#pragma omp critical (writeRandomResult)
-					randomResult << currentResult;
+					//#pragma omp critical (writeRandomResult)
+					//randomResult << currentResult;
 			//	}
+			
+			// add preLog to overall_preLog
+			#pragma omp critical 
+			vec_overall_preLog.push_back(preLog);
+			}
+
+			//sort resultAllSNPs based on p-value 
+			sort(currentResultAllSNPs.begin(), currentResultAllSNPs.end(),sortby);
+			//check sorting 
+			//for (auto& elem : resultAllSNPs){ // get vector per entry
+			//	cout << to_string(get<0>(elem)) + '\t' + get<1>(elem)<< endl;
+			//}
+			//compute fdr
+			//cout << "number of tests: "  << snpsXmotifs << endl;
+			double rank = currentResultAllSNPs.size(); 			
+			double previous_pvalue = 1.0;
+
+			for (auto& elem : currentResultAllSNPs){ // get vector per entry
+	
+				//compute fdr
+				double p = get<0>(elem);
+				string m = get<1>(elem);
+				double helper = min(p*(snpsXmotifs/rank), previous_pvalue);
+				previous_pvalue = helper;
+				rank--;
+				//if (helper <= io.getPvalueDiff()){// and p <= io.getPvalueDiff()){
+				// for Jayas analysis
+				if (p <= io.getPvalueDiff()){// and p <= io.getPvalueDiff()){
+					#pragma omp critical
+					TF_counts[m] += 1; //count per round number of sig. TF hits
+					randomResult << get<2>(elem) << '\t' << to_string(helper) << '\t' << get<3>(elem); 
+				}
 			}
 			randomResult.close();	
+
 			//write output TF_counts for the current round
 			outputTFs << r;
 			for (auto& elem : motifNames){
@@ -669,14 +730,16 @@ int main(int argc, char *argv[]){
 			outputTFs << '\n';
 
 			//add helper_preLog to original preLog
-			int grr = 0;
-			for(auto& elem : helper_preLog){
-				grr++;
-				preLog[elem.first] = elem.second;
+			//int grr = 0;
+			for(auto& elem : vec_overall_preLog){
+				for(auto& e : elem){
+					overall_preLog[e.first] = e.second;
+				}
 			}
+			vec_overall_preLog.clear(); //empty helper_preLog
 			//cout << "round r: " << r << " einträge helper_preLog: " << grr << endl;  
 			//cout << "size preLog: " << preLog.size() << '\n'<<  endl;
-			helper_preLog.clear(); //empty helper_preLog
+			//helper_preLog.clear(); //empty helper_preLog
 		}
 		outputTFs.close(); //close TF_counts file
 	}
@@ -732,6 +795,10 @@ bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b){
 	return (get<0>(a) > get<0>(b));
 }
 
+bool sortby(const tuple<double, string, string, string>& a, const tuple<double, string, string, string>& b){
+    //return (get<2>(a) > get<2>(b));
+	return (get<0>(a) > get<0>(b));
+}
 /*
 / read or determine MAF distribution of the input SNPs
 /
@@ -747,7 +814,7 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 		getToken(line, ';'); //skip wildtype 
 		getToken(line, ';'); //skip mutatant
 		getToken(line, ';');//skip rsID
-		try{ //throws an error when MAF is smaller than double precisoins allows -> set to 0
+		try{ //throws an error when MAF is smaller than double precisoins allows -> set after		
 			maf = stod(getToken(line, ';'));
 		}catch (const std::out_of_range& oor){
 			maf = 0.0;	
@@ -776,8 +843,7 @@ vector<double> readFrequence(string frequence){
 vector<Matrix<double>> PFMsToPWMs( vector<string>& PWM_files, vector<double>& freq, string path_to_pwms){
 	
 	if(path_to_pwms == "")
-		throw invalid_argument("no path to pwm files is set!");
-	
+		throw invalid_argument("no path to pwm files is set!");	
 	Matrix<double> PWM_matrix;
 	vector<Matrix<double>> PWMs(PWM_files.size(), PWM_matrix);
 
@@ -787,15 +853,18 @@ vector<Matrix<double>> PFMsToPWMs( vector<string>& PWM_files, vector<double>& fr
 	double freq_max = *(max_element(freq.begin(), freq.end()));
 
 	for (int k = 0; k < PWM_files.size(); ++k){// for all PWMs
+		//cout << PWM_files[k] << endl;	
 		ifstream PWM(path_to_pwms + PWM_files[k]);//open actual PWM file
 		PWM >> PWM_matrix; //read PWM file as matrix
 		// determine PWM, round matrix and shift it in such a way that only values > 0 are included in the matrix -> important for pvalue calculation
 		for (int i = 1; i<= PWM_matrix.ncol(); i++){
 			for (int j = 1; j <= 4; j++){
 				value = log10(PWM_matrix(j,i)/freq[j-1]) - log10(EPSILON/freq_max) + EPSILON;
+				//value = log(PWM_matrix(j,i)/freq[j-1]) - log(EPSILON/freq_max) + EPSILON;
 				PWM_matrix(j,i) =  (round(value * rounder ) / rounder);
 			}
 		}
+		//cout << PWM_matrix << endl; 
 		PWMs[k] = PWM_matrix; // store matrix in map
 	}
 	return PWMs;
@@ -842,7 +911,6 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
 			pos = round(size_pvalues -(rounder*prob)); //berechnet an welcher position im vector der pvalue für prob steht
 			pos_comp = round(size_pvalues -(rounder*prob_comp)); //berechnet an welcher position im vector der pvalue für prob steht
 
-
 			pvalue_prob = pvalues[pos];
 			pvalue_seq.push_back(pvalue_prob);
 			if (pvalue_prob <= pvalue){ 
@@ -854,8 +922,8 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
 			if(pvalue_prob_comp <= pvalue){
 				result = 1;
 			}
-//			cout << "prob: " << prob << " pos : " << pos << " pvalue: " << pvalue_prob << endl;
-//			cout << "probComp: " << prob_comp << " posComp : " << pos_comp << " pvalueComp: " << pvalue_prob_comp << endl;
+			//cout << "prob: " << prob << " pos : " << pos << " pvalue: " << pvalue_prob << endl;
+			//cout << "probComp: " << prob_comp << " posComp : " << pos_comp << " pvalueComp: " << pvalue_prob_comp << endl;
 		}
 
 		if (counter ==  end_seq)
@@ -877,34 +945,34 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
 *Output: probability of the actual k_mer
 */
 double probKmer(Matrix<double>& PWM,string::iterator start, string::iterator end){
-//	cout << "forward" << endl;
+	//cout << "forward" << endl;
 	
         double prob = 0.0; //muss 0.0 sein bei plus
 	int counter = 1;
 	for(auto i = start; i != end+1; i++){ //iterators over k_mer
 //		cout << POSITION[((*i) & 0x0f)] << " " ; 
-//		cout << *i;
+	//	cout << *i;
 		prob+= PWM(POSITION[((*i) & 0x0f)], counter); //determine which letter we do consider and look up the accodirng prob in the PWM
 		counter ++;
 	}
-//	cout << endl;
-//	cout << prob << endl;
+	//cout << endl;
+	//cout << prob << endl;
         return prob;
 }
 //same as for probKMer, only different iterates in reverse order and determne complement for actual letter
 double probKmerComplement(Matrix<double>& PWM,string::iterator start, string::iterator end){
 
-//	cout << "reverse" << endl;
+	//cout << "reverse" << endl;
         double prob = 0.0; //muss 0.0 sein bei plus
 	int counter = 1;
 	for(auto i = end; i != start-1; i--){// iterator in reverse order
 //		cout << COMPLEMENT[((*i) & 0x0f)] << " ";
-//		cout << *i;
+	//	cout << *i;
 		prob+= PWM(COMPLEMENT[((*i) & 0x0f)], counter); //determine which letter we do consider and look up the accodirng prob in the PWM
 		counter ++;
 	}
-//	cout << endl;
-//	cout << prob << endl;
+	//cout << endl;
+	//cout << prob << endl;
         return prob;
 }
 
@@ -986,56 +1054,57 @@ string createMutatedSeq(string header, string&  seq, vector<string>& splittedHea
 	return result;
 }
 
-double cdf_laplace(double location, double scale, double value){
+double cdf_laplace(double my, double beta, double value){
 
 	double result = 0.0;
-	if (value < location){
-		result = 0.5 * (exp(((value - location)/scale)));
+	if (value < my){
+		result = 0.5 * (exp(((value - my)/beta)));
 	}else{ //value >= location
-		result = 1 - (0.5 * (exp(-((value - location)/scale))));
+		result = 1 - (0.5 * (exp(-((value - my)/beta))));
+	}
+	//cout << "pvalue diffBind: " << result << endl;
+	return result;
+}
+
+double cdf_laplace_abs_max(double scale, double numberKmers, double value){
+
+	//cout << "scale: " << scale << endl;
+	//cout << "numberKmers: " << numberKmers << endl;
+	//cout << "value: " << value << endl;
+
+	//compute cdf of laplace abs maximum 
+	double result = 0;
+	if (scale > 0.0){ 
+		double cdf = pow((1 - exp(-(abs(value))/ scale )), numberKmers);
+	//	cout << "CDF: " << cdf << endl;
+		result = 1 - cdf;
+	//	cout << "1 - cdf: " << result << endl;
+	}else{ // if scale is not defind for this motif length 
+		result = 1.0;
 	}
 	return result;
 }
 
-double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_){
-//double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log, double& log_){
+
+
+double differentialBindingAffinityBackground(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers){
 
 	double div = 0.0;
 	log_ = 0.0;
 	double pvalue = 0.0;
 
-/*
-	div = first_elem/second_elem; //TODO: alternative store log(first and second element) and compute log(first) -log(second)
-
-	auto found = pre_log.find(div);
-	if (found != pre_log.end()){ //check if the log of div was calculated bevore
-		//log_ = pre_log[div];
-		log_ = found->second;
-		counter++;
-	}else{ 
-		found = helper_preLog.find(div);
-		if (found != helper_preLog.end()){
-			//log_ = helper_preLog[div];	
-			log_ = found->second;	
-			counter++;
-		}else{
-			log_ = log(div);
-			#pragma omp critical
-			helper_preLog[div] = log_;		
-		}
-	}
-*/
-
-	//alternative
 	double log_first = 0.0, log_second = 0.0;
+
 	auto found = pre_log.find(first_elem);
+
+	//cout <<"first elem: " << first_elem << endl;
+	//cout <<"second elem: " << second_elem << endl;
 	if (found != pre_log.end()){ //check if the log of div was calculated bevore
 		log_first = found->second;
 	//	#pragma omp atomic
 	//	counter++;
 	}else{
 		log_first = log(first_elem);
-		#pragma omp critical (write_helper_preLog)
 		helper_preLog[first_elem] = log_first;		
 	}
 	found = pre_log.find(second_elem);
@@ -1045,15 +1114,66 @@ double differentialBindingAffinity(double first_elem, double second_elem, unorde
 	//	counter++;
 	}else{
 		log_second = log(second_elem);
-		#pragma omp critical (write_helper_preLog)
 		helper_preLog[second_elem] = log_second;		
 	}
+	//}
 	log_ = log_first-log_second;
+	//cout <<"log diffBinding: " << log_ << endl;
 
-	//determine pvalue
+	//determine pvalue old versions
 	//symmetric laplace(0,1) 
-	//pvalue = 1 - cdf_laplace(0.0, 1.0, abs(log_));
-	pvalue = 1 - cdf_laplace(0.0, 0.368, abs(log_));
+	//pvalue = 2* cdf_laplace(0.0, 1.0, -abs(log_));
+	//pvalue = 2* cdf_laplace(0.0, 0.368, -abs(log_));
+	//determine pvalue
+	pvalue = cdf_laplace_abs_max(scale, numberKmers, log_);
+	//cout << "pvalue: " << pvalue << endl;
+	return pvalue;	
+}
+
+
+//double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers){
+double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round){
+
+	double div = 0.0;
+	log_ = 0.0;
+	double pvalue = 0.0;
+
+	double log_first = 0.0, log_second = 0.0;
+	
+	if (round > 0){
+
+		auto found = pre_log.find(first_elem);
+
+		//cout <<"first elem: " << first_elem << endl;
+		//cout <<"second elem: " << second_elem << endl;
+		if (found != pre_log.end()){ //check if the log of div was calculated bevore
+			log_first = found->second;
+		}else{
+			log_first = log(first_elem);
+			pre_log[first_elem] = log_first;		
+		}
+		found = pre_log.find(second_elem);
+		if (found != pre_log.end()){ //check if the log of div was calculated bevore
+			log_second = found->second;
+		}else{
+			log_second = log(second_elem);
+			pre_log[second_elem] = log_second;		
+		}
+	}else{
+		log_first = log(first_elem);
+		log_second = log(second_elem);
+	}
+
+	log_ = log_first-log_second;
+	//cout <<"log diffBinding: " << log_ << endl;
+
+	//determine pvalue old versions
+	//symmetric laplace(0,1) 
+	//pvalue = 2* cdf_laplace(0.0, 1.0, -abs(log_));
+	//pvalue = 2* cdf_laplace(0.0, 0.368, -abs(log_));
+	//determine pvalue
+	pvalue = cdf_laplace_abs_max(scale, numberKmers, log_);
+	//cout << "pvalue: " << pvalue << endl;
 	return pvalue;	
 }
 

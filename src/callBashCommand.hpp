@@ -20,8 +20,9 @@ class BashCommand{
 	void getFasta(string bed_file, string output, string options);
 	void mkdir(string dir, string options, bool remove);
 	void rm(string dir);
-	void callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_id, double threshold);
-	void callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir);
+	void callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_id, double threshold, string outputDir);
+	void callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
+	void callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
 //	void callPythonScriptSplitSEMs(string sourceDir, string TransfacPFMs, string PFMsDir);
 	void bedtoolsRandom(int len, int num, int seed, string genomes, string output);
 	void cut(string options, string inputFile, string outputFile);
@@ -82,20 +83,29 @@ void BashCommand::mkdir(string dir, string options, bool remove){
 	return;
 }	
 
-void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold){
+void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold, string outputDir){
 //	cout << "sourceDir: " << sourceDir<< "/src/ activeTFs: " << activeTFs << " PFMs: " << TransfacPFMs << "PFMdir: " << PFMsDir << " ensembl names: " << ensemble_name << " threshold: " << threshold << endl; 
 
 	//string command = "python3 ./" + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
-	string command = "python3 "  + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
+	string command = "python3 "  + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold) + " " +  outputDir + "/motifInfo.txt";
 //	cout << "command: " << command << endl;
 
 	system(command.c_str());
 	return;
 }
 
-void BashCommand::callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir){
+void BashCommand::callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
 	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
-	string command = "python3 " + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
+	string command = "python3 " + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
+	system(command.c_str());
+	return;
+}
+
+//only for snp selex data from f1000 paper https://f1000research.com/articles/11-33#ref6
+void BashCommand::callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
+	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
+	string command = "python3 " + sourceDir + "/src/seperatePFMs_SNP_SELEX.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
+	cout << command << endl;
 	system(command.c_str());
 	return;
 }
