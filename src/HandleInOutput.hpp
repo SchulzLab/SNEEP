@@ -112,7 +112,7 @@ class InOutput{
 	string dbSNPs = "";
 	int seed = 1;
 	int minTFCount = 0;
-	string scaleFile = "";
+	string scaleFile = "necessaryInputFiles/estimatedScalesPerMotif_1.9.txt";
 };
 
 //construtor

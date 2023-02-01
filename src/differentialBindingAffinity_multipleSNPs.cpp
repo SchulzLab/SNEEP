@@ -56,7 +56,8 @@ int getSeqEnd(string header); //return the end
 string createMutatedSeq(string header, string& seq, vector<string>& splittedHeader); //determines the mutated sequence based on the given SNP
 double cdf_laplace(double my, double beta, double value); //determine laplace distribution
 double differentialBindingAffinityBackground(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers);
-double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round);
+//double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round);
+double differentialBindingAffinity(double first_elem, double second_elem,  double& log_, double& scale, int numberKmers);
 string forwardOrReverse(int distance_); //determines on which strand the motif bindes
 vector<string> parseHeader(string header, string delim); //parse the header of the fasta file
 void writeHeadersOutputFiles(bool writeOutput,  string& currentOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
@@ -143,11 +144,11 @@ int main(int argc, char *argv[]){
 		//bc.callPythonScriptSplitPFMsSELEX(io.getSourceDir(), io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
 		
 	}
-	bool scalesPerMotifs = false;
+//	bool scalesPerMotifs = false;
 	unordered_map<string, double> scales; 
 	if (io.getScaleFile() != ""){
 		io.readScaleValues(io.getScaleFile(),scales);
-		scalesPerMotifs = true;
+//		scalesPerMotifs = true;
 	}
 
 //	for(auto& i : scales){
@@ -187,7 +188,7 @@ int main(int argc, char *argv[]){
 	vector<string> sequences (numberSNPs, helper2);
 	//unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
 
-	vector<unordered_map<double, double>> vec_overall_preLog;
+	//vector<unordered_map<double, double>> vec_overall_preLog;
 
 	int sigEntries = 0, sigEntriesOverlappingREM = 0;
 
@@ -300,14 +301,15 @@ int main(int argc, char *argv[]){
 						posSigHit = pos + floor(l/2); //deterime position of the hit	
 
 						//determine differntial binding
-						if (scalesPerMotifs == true){
+						//if (scalesPerMotifs == true){
 							//cout << motif << "\t" << lenMotif << "\t"<< scales[motif] << endl;
 							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_, scales[motif], lenMotif*2);
-							diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, log_, scales[motif], lenMotif*2, rounds);
-						}else{
+							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, log_, scales[motif], lenMotif*2, rounds);
+						diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], log_, scales[motif], lenMotif*2);
+						//}else{
 							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_, SCALES[lenMotif], lenMotif*2);
-							diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, log_, SCALES[lenMotif], lenMotif*2, rounds);
-						}
+						//	diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l],  log_, SCALES[lenMotif], lenMotif*2);
+						//}
 						//cout <<   log_ << "\t" << lenMotif << "\t" << motif << endl;
 						//stores info maximal diff binding affinity
 						if (diffBinding <= maxDiffBinding){// and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
@@ -374,8 +376,8 @@ int main(int argc, char *argv[]){
 		}
 
 		// add preLog to overall_preLog
-		#pragma omp critical 
-		vec_overall_preLog.push_back(preLog);
+		//#pragma omp critical 
+		//vec_overall_preLog.push_back(preLog);
 
 	}
 
@@ -457,14 +459,14 @@ int main(int argc, char *argv[]){
 	if (rounds > 0){
 	
 		//add values to preLog
-		cout << "add computed log values to overall_preLog" << endl;
-		unordered_map<double, double> overall_preLog; 
-		for(auto& elem : vec_overall_preLog){
-			for(auto& e : elem){
-				overall_preLog[e.first] = e.second;
-			}
-		}
-		vec_overall_preLog.clear(); //empty helper_preLog
+		//cout << "add computed log values to overall_preLog" << endl;
+		//unordered_map<double, double> overall_preLog; 
+		//for(auto& elem : vec_overall_preLog){
+		//	for(auto& e : elem){
+		//		overall_preLog[e.first] = e.second;
+		//	}
+		//}
+		//vec_overall_preLog.clear(); //empty helper_preLog
 
 		cout << "start random sampling" << endl;
 
@@ -566,7 +568,7 @@ int main(int argc, char *argv[]){
 			vector<tuple<double,string, string, string>>  currentResultAllSNPs; 
 			#pragma omp parallel for  num_threads(io.getNumberThreads())
 			for (int i = 0; i < numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
-				unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
+				//unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
 				
 				string currentResult = "";
 				//define variables
@@ -626,14 +628,14 @@ int main(int argc, char *argv[]){
 
 									// TODO: adapte for scale -> done but check if it works 
 									//determine differntial binding
-									if (scalesPerMotifs == true){
+									//if (scalesPerMotifs == true){
 										//cout << "motif: " << current_motif << " corresponding scale: " << scales[current_motif] << endl;
-										//current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_, scales[current_motif], lenMotif*2);
-										current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l],overall_preLog, preLog,  current_log_, scales[current_motif], lenMotif*2);
-									}else{
-										//current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], preLog, helper_preLog, current_log_, SCALES[lenMotif], lenMotif*2);
-										current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l], overall_preLog, preLog,  current_log_, SCALES[lenMotif], lenMotif*2);
-									}
+									current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], current_log_, scales[current_motif], lenMotif*2);
+										//current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l],overall_preLog, preLog,  current_log_, scales[current_motif], lenMotif*2);
+								//	}else{
+								//		current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l],  current_log_, SCALES[lenMotif], lenMotif*2);
+										//current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l], overall_preLog, preLog,  current_log_, SCALES[lenMotif], lenMotif*2);
+								//	}
 									//current_allDiffBinding.push_back(make_pair(current_diffBinding, l));
 								
 									//stores info maximal diff binding affinity
@@ -692,8 +694,8 @@ int main(int argc, char *argv[]){
 			//	}
 			
 			// add preLog to overall_preLog
-			#pragma omp critical 
-			vec_overall_preLog.push_back(preLog);
+			//#pragma omp critical 
+			////vec_overall_preLog.push_back(preLog);
 			}
 
 			//sort resultAllSNPs based on p-value 
@@ -734,12 +736,12 @@ int main(int argc, char *argv[]){
 
 			//add helper_preLog to original preLog
 			//int grr = 0;
-			for(auto& elem : vec_overall_preLog){
-				for(auto& e : elem){
-					overall_preLog[e.first] = e.second;
-				}
-			}
-			vec_overall_preLog.clear(); //empty helper_preLog
+			//for(auto& elem : vec_overall_preLog){
+			//	for(auto& e : elem){
+			//		overall_preLog[e.first] = e.second;
+			//	}
+			//}
+			//vec_overall_preLog.clear(); //empty helper_preLog
 			//cout << "round r: " << r << " einträge helper_preLog: " << grr << endl;  
 			//cout << "size preLog: " << preLog.size() << '\n'<<  endl;
 			//helper_preLog.clear(); //empty helper_preLog
@@ -1135,7 +1137,8 @@ double differentialBindingAffinityBackground(double first_elem, double second_el
 
 
 //double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers){
-double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round){
+//double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round){
+double differentialBindingAffinity(double first_elem, double second_elem,  double& log_, double& scale, int numberKmers){
 
 	double div = 0.0;
 	log_ = 0.0;
@@ -1143,29 +1146,29 @@ double differentialBindingAffinity(double first_elem, double second_elem, unorde
 
 	double log_first = 0.0, log_second = 0.0;
 	
-	if (round > 0){
+	//if (round > 0){
 
-		auto found = pre_log.find(first_elem);
+	//	auto found = pre_log.find(first_elem);
 
 		//cout <<"first elem: " << first_elem << endl;
 		//cout <<"second elem: " << second_elem << endl;
-		if (found != pre_log.end()){ //check if the log of div was calculated bevore
-			log_first = found->second;
-		}else{
-			log_first = log(first_elem);
-			pre_log[first_elem] = log_first;		
-		}
-		found = pre_log.find(second_elem);
-		if (found != pre_log.end()){ //check if the log of div was calculated bevore
-			log_second = found->second;
-		}else{
-			log_second = log(second_elem);
-			pre_log[second_elem] = log_second;		
-		}
-	}else{
-		log_first = log(first_elem);
-		log_second = log(second_elem);
-	}
+	//	if (found != pre_log.end()){ //check if the log of div was calculated bevore
+	//		log_first = found->second;
+	//	}else{
+	//		log_first = log(first_elem);
+	//		pre_log[first_elem] = log_first;		
+	//	}
+	//	found = pre_log.find(second_elem);
+	//	if (found != pre_log.end()){ //check if the log of div was calculated bevore
+	//		log_second = found->second;
+	//	}else{
+	//		log_second = log(second_elem);
+	//		pre_log[second_elem] = log_second;		
+	//	}
+	//}else{
+	log_first = log(first_elem);
+	log_second = log(second_elem);
+	//}
 
 	log_ = log_first-log_second;
 	//cout <<"log diffBinding: " << log_ << endl;
