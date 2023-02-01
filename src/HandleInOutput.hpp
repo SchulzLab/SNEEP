@@ -478,8 +478,8 @@ void InOutput::callHelp(){
 	"-n number threads (default 1)\n" <<
 	"-p pvalue for motif hits (default 0.05)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
-	"-b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequency.txt)\n" <<
-	"-s file where the computed scales per motif are stored\n" <<
+	"-b base frequency for PFMs -> PWMs (default /necessaryInputFiles/frequency.txt)\n" <<
+	"-s file where the computed scales per motif are stored (default necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<
 	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
 	"-f additional footprint/open chromatin region file in bed file format\n" <<
 	"-m if flag is set, the  maximal differential binding affinity per SNP is printed\n"<<
