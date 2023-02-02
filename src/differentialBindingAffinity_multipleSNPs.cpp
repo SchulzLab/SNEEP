@@ -111,7 +111,7 @@ int main(int argc, char *argv[]){
 	}else{
 		
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\n";
 	}
 	//determine overlapping peaks
 	string footprintFile = io.getFootprints();
