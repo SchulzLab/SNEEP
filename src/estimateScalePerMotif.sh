@@ -34,7 +34,7 @@ do
 
 	wc -l ${outputDir}/maximalScores_${thresholdEntropy}/${line}_maximalScores.txt 
 	## determine scale per motif and write to file
-	python findZerosEachMotif.py  ${outputDir}/maximalScores_${thresholdEntropy}/${line}_maximalScores.txt  ${outputDir}/estimatedScalesPerMotif_${thresholdEntropy}.txt ${outputDir}/distributionPerMotif_${thresholdEntropy}/ sneep_randomlySelectedDbSNPs_${thresholdEntropy}/motifInfo.txt
+	python src/findZerosEachMotif.py  ${outputDir}/maximalScores_${thresholdEntropy}/${line}_maximalScores.txt  ${outputDir}/estimatedScalesPerMotif_${thresholdEntropy}.txt ${outputDir}/distributionPerMotif_${thresholdEntropy}/ sneep_randomlySelectedDbSNPs_${thresholdEntropy}/motifInfo.txt
 
 done < ${listOfMotifs}
 
