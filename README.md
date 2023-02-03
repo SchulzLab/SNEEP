@@ -1,30 +1,25 @@
 # SNEEP: SNP exploration and functional analysis using epigenetic data
 
-SNEEP is metho to identify regulatry non-coding SNPs that modify the binding sites of Transcription Factors (TFs) for large SNP sets. SNEEP is based on the statistical approach introduced in our paper 'A statistical approach to identify regulatory DNA variants' (preprint:  ). 
+SNEEP is fast method to identify regulatry non-coding SNPs  (rSNPs) that modify the binding sites of Transcription Factors (TFs) for large collections of SNPs provided by the user. SNEEP is based on a statistical approach introduced in our paper 'A statistical approach to identify regulatory DNA variants' (preprint:  ).
+We evaluate the effect of a SNP by computing a maximal differential TF binding score, which describes the difference of the TF binding affinity of the two allelic variants of the SNP.  
 
-
-In more detail, our SNEEP approach prioritizes SNPs as targets of one or several Transcription Factors (TFs) and infers whether a gene’s expression is influenced by the change in the TF binding behavior. To do so, we 
--	evaluate the impact of a SNP on a potential TF binding site by calculating a probabilistic differential binding score for the difference in TF binding affinity in wild type versus a mutated sequence. 
--	associate SNPs to potential target genes, by making use of different types of information, like linked epigenetic elements using Hi-C data or catalouged elements that associate with gene expression changes from the EpiRegio database. 
-
-SNEEP can easily handle large collections of SNPs provided by the user. Additional, various kinds of user-specific epigenetic data can be incorporated, like 
--	open chromatin data to exclude SNPs located in region not accessible in the cell type of interest 
--	gene expression data to restrict the analysis to TFs which are expressed. 
+Beside of the identification of rSNPs and the affected TFs, we allow to add various kinds of cell type or tissue specific epigenetic information either public available or user-specific, like 
+-  associate rSNPs to potential target genes using regulatory elements (REMs) linked to genes based on Hi-C data or taken from our EpiRegio database (link epiregio).
+- open chromatin data to exclude SNPs located in region not accessible in the cell type of interest 
+- gene expression data to restrict the analysis to TFs which are expressed. 
 
 Further, SNEEP provides a comprehensive report containing different summary statistics, which
 -	highlight TFs whose binding affinity is most often affected by the analyzed SNPs, 
 -	list TFs associated to a gain, or a loss of TF binding affinity based on the input data,
 -	provide information about how many SNPs are linked to a target gene.  
 
-All statistical assessments are compared against proper random controls to highlight only biologically interesting results.
-
-The following overview figure visualizes the various ways how to use our SNEEP approach. 
-
-TODO: create figure
+All statistical assessments are compared against proper random controls to highlight only biologically interesting results. For an example for the GWAS myocardial infarction (downloaded from the GWAS catalog), see here. 
 
 # Build our tool
 
-Please make sure that the following software is available on your machine: 
+We provide a bioconda package to install the main functionality of our approach: 
+
+If you do not want to use our bioconda package, please make sure that the following software is available on your machine: 
 
 - c++11 
 - g++ (9.3.0)
@@ -33,6 +28,8 @@ Please make sure that the following software is available on your machine:
 - openmp
 - R (4.0.4) and the following libraries: ggplot2, rmarkdown, tinytex, knitr, kableExtra and bookdown
 - for summary report additional pandoc and pdfcrop (Don't forget to run tinytex::tlmgr_install('pdfcrop') once in R).
+
+
 
 To install SNEEP,  run the following commands: 
 
@@ -44,12 +41,12 @@ make
 We tested the code only on a linux machine. 
 
 # Download Zenodo repository
-Additionally, to the GitHub repository, which contains the source code and small example files, we created a [Zenodo repository](https://doi.org/10.5281/zenodo.4892591). The repository allows the easy download of larger data files required to run SNEEP and contains 4 files, explained in more detail in the following. 
+Additionally, to the GitHub repository, which contains the source code and small example files, we created a [Zenodo data repository]( https://doi.org/10.5281/zenodo.7600180). The repository allows the easy download of larger data files required to run SNEEP and contains 4 files, explained in more detail in the following. 
 
 ## dbSNP database (dbSNPs_sorted.txt.gz) 
 
-To identify TFs effected more often in the given input SNP set than expected, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the dbSNP database and rerun the analysis on these SNPs. 
-In order to sample the SNPs in a fast and efficient manner, we provide a file containing the SNPs of the dbSNP database.  The file is a slightly modified version of the [public available one]( https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) (file GCF_000001405.38). In detail, we 
+To identify TFs affected more often than  expected by chance in the given input SNP set, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the dbSNP database and rerun the analysis on these SNPs. 
+In order to sample the SNPs in a fast and efficient manner, we provide a file containing the SNPs of the dbSNP database.  The file is a  slightly modified version of the [public available one]( https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) (file GCF_000001405.38). In detail, we 
 
 -	removed all SNPs overlapping with a protein-coding region (annotation of the [human genome (GRCh38), version 36 (Ensembl 102)]( https://www.gencodegenes.org/human/release_36.html)),
 -	removed all information not important for SNEEP,
@@ -86,7 +83,8 @@ The following 3 files are required as minimal input to run SNEEP:
 2)	a bed-like SNP file,
 3)	a reference genome file in fasta format.
 
-We provide the human TF motifs from the JASPAR database (version 2020) in the required format in the examples directory (SNEEP/examples/ JASPAR2020_HUMAN_transfac_P0.txt).  However, every set of TF motifs can be used instead, for instance from another database (e.g. HOCOMOCO or Kellis) or a different species. 
+We provide  human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis encode database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  Instead of the provided TF motif set, also user-specific TF motifs can be used for instance for different species. Then the scale parameters need to be estimated before running SNEEP (see section XX)
+
 The required bed-like SNP file is a tab-separated file containing the following entries: 
 -	chr,
 -	start position (0-based),
@@ -124,16 +122,16 @@ ATCGGGTCA…
 >chr2
 TTTGAGACCAT…
 ```
+For the provided examples in the following, please use genome version hg38.
 
 ## Minimal example: 
 
 To try SNEEP with the minimal required input, make sure you are in the SNEEP folder and run: 
 
 ```
-./src/differentialBindingAffinity_multipleSNPs  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file> 
+./src/differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
 ```
-
-Per default the result is stored in the directory ‘SNEEP_output’. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
+Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
 
 ## Optional input parameters
 
@@ -147,16 +145,16 @@ which prints
 
 ```
 Call program with ./src/differentialBindingAffinity_multipleSNPs
-
 optinal parameters:
 -o outputDir (default SNEEP_output/, if you want to specific it, it must be done as first argument)
 -n number threads (default 1)
 -p pvalue for motif hits (default 0.05)
 -c pvalue differential binding (default 0.01)
--b base frequency for PFMs -> PWMs (default; /necessaryInputFiles/frequency.txt)
+-b base frequency for PFMs -> PWMs (default /necessaryInputFiles/frequency.txt)
+-s file where the computed scales per motif are stored (default /necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) 
 -a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt
 -f additional footprint/open chromatin region file in bed file format
--m if flag is set, the  maximal differential binding affinity per SNP is stored in <outputDir>/MaxDiffBindingAffinity.txt
+-m if flag is set, the  maximal differential binding affinity per SNP is printed
 -t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID	expression-value)
 -d threshold TF activity (must be given if -t is given)
 -e tab-seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)
@@ -168,18 +166,15 @@ optinal parameters:
 -l start seed (default 1)
 -q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)
 -h help
-
 transfac PFM file,  bed-like SNP file and path to genome file (fasta format)  must be given
 help function end
-
 ```
 
 # Use SNEEP on a realistic example
 
-
 For an realistic example we consider SNPs associated to myocardial infarction (downloaded from the [GWAS catalog](https://www.ebi.ac.uk/gwas/efotraits/EFO_0000612)) and the corresponding proxy SNPs (determined with [SNiPA](https://snipa.helmholtz-muenchen.de/snipa3/index.php?task=proxy_search), R2 value >= 0.8). The following section provides example runs with different combination of optional input parameters. The example data is located in the directory SNEEP/example/. The default parameters (SNP-file, motif file and human genome file) are the once we already used in the minimal example. Make sure you are located in the SNEEP main folder (SNEEP/).
 
-Notice, that the optional parameters can be combined in any way, not only in the ways shown in the following examples.
+Notice, that the optional parameters can be combined in many more ways than presented in the following examples. 
 
 ## Example 1: Consider only TFs expressed in the cell type or tissue of interest
 
@@ -188,7 +183,7 @@ To do so, we need to set the optional parameters -t, -d and -e. For our example 
 So, the resulting command is: 
 
 ```
-./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/ensemblID_geneName_TFs.txt -d 0.5 examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/TF_ensemblID_name_human_JASPAR2022_GRCh38p13.txt -d 0.5 examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
 ```
 
 Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
@@ -211,31 +206,33 @@ Next unzip the file via gunzip.
 The resulting SNEEP call is 
 
 ```
-./src/differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/ -f <path-to-ENCODE-data/ENCFF199VHV.bed> examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+./src/differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/ -f <path-to-ENCODE-data/ENCFF199VHV.bed> examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
 ```
 
 ## Example 3: Associate the SNPs, which significantly affect the binding behavior of a TF to their target genes
 
-To associate the target genes, we need to specify a file holding information about epigenetic interactions (flag -e). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see …). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
+To associate the target genes, we need to specify a file holding information about epigenetic interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see …). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
  
 
 ```
-./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/ -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/ -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
 ```
 
-## Example 4: Compute a proper random background control and highlight the biologically interesting results 
+## Example 4: Compute a proper random background control and highlight the cell-ype specific TFs 
 
-To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample 100 background rounds, meaning set -j to 100. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (for more information, see …), which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seed for runs with different input SNPs. The flag -q is used to speed up the background sampling by exclude TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
+To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning set -j to 100. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt) which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seed for runs with different input SNPs. The flag -q is used to speed up the background sampling by exclude TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
 Further we recommend running SNEEP in the parallel mode by specifying the number of threads via the -n flag. 
 
 A possible SNEEP run with background sampling can look as following: 
 
 ```
-./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -n 20 -j 100 -k dbSNPs_sorted.txt -l 2 -q 0 -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/JASPAR2020_HUMAN_transfac_P0.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path-to-genome-file>
+./src/differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -n 20 -j 100 -k /projects/sneep/work/pipelineSNEEP/dbSNP/dbSNPs_sorted_withoutDotAndN.txt -l 2 -q 0 -r interactionsREM_PRO_HiC.txt -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed
+<path-to-genome-file>
 ```
 
 Note, that we also associated the SNPs to their potential target genes (as shown in example 3).
 
+TODO: this is not included in the bioconda package right? Ad example PDF 
 To visualize the biologically interesting results, we generate a summary file via RMarkdown. 
 In this summary information about TFs, which are associated to a change in the binding affinity caused by a SNP more often than expected, are presented. 
 To generate the summary file, we provide the Rscript builtPDF.R. As input the 
@@ -252,14 +249,35 @@ So for our current example, we run the following:
 Rscript  src/builtPDF.R <absolute-path>/SNEEP/examples/SNEEP_output_background_sampling/ 100 4  src/
 ```
 
-The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory, hence in our case in the  examples/SNEEP_output_background_sampling/ directory.
+The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory, thus in our case in the  examples/SNEEP_output_background_sampling/ directory.
+
+
+# Compute scale parameter b for a user-defined TF motif set
+
+To estimate the scale parameter b, we provide the script estimateScalePerMotif.sh which requires the following input: 
+
+-	Number of sampled SNPs (recommend at least 100.000 SNPs)
+-	TF motif file in TRANSFAC format 
+-	Output directory 
+-	List with the TF names one wishes to compute the scale parameter b for
+-	Entropy cutoff
+-	Path to dbSNP file (downloaded from ZENODO)
+
+As example we can compute the scale parameters for the  combined TF motif set of the JASPAR, HOCOMOCO and Kellis database as following: 
+
+```
+bash src/estimateScalePerMotif.sh 200000 examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/scalesPerMotif/ examples/motifNames_combined_Jaspar_Hocomoco_Kellis_human.txt 1.9 /projects/sneep/work/pipelineSNEEP/dbSNP/dbSNPs_sorted.txt <path-to-dbSNPs>
+```
+
+
+
 
 # Detailed explanation of the output files 
 The output files of a SNEEP run can either be found in the default output directory (SNEEP_output/) or in the user-defined one. In the following the most important output files are explained in more detail: 
 
 ## Main result file (result.txt) 
 
-The file lists all SNPs which cause a significant change of the binding affinity for a TF. A single SNP can affect multiple TFs, which results in multiple lines in the result file. The first 14 entries are the following: 
+The file lists all SNPs which cause a significant change of the binding affinity for a TF (sorted in reserve order, the smallest p-value is listed as last entry).  A single SNP can affect multiple TFs, which results in multiple lines in the result file. The first 14 entries are the following: 
 
 -	*SNP_position* chr:start-end (0-based),
 -	*var1* e.g., effector allele or alternative allele,
@@ -275,6 +293,8 @@ The file lists all SNPs which cause a significant change of the binding affinity
 -	*pvalue_BindAff_var2* p-value of the binding affinity for var2
 -	*log_pvalueBindAffVar1_pvalueBindAffVar2* logarithmic ratio of the p-value of the binding affinity of var1 and the p-value of the binding affinity of var2
 -	*pvalue_DiffBindAff* corresponding p-value for the previous entry (log_pvalueBindAffVar1_pvalueBindAffVar2)
+-	*fdr_corrected_pvalue* FDR corrected p-value for pvalue_DiffBindAff
+
 
 If the current SNPs overlaps with an epigenetic interaction, the following entries, provide more information about the interaction regions. Otherwise, the remaining entries are filled with ‘.’.
 
@@ -296,4 +316,4 @@ The file summaryReport.pdf presents our summary analysis and is only generated i
 
 ## Result of the random background sampling
 
-The results for the random background sampling can be found in the directory sampling and contains per round the randomly sampled SNPs (random_SNPs_<round>.txt) and the randomResult.txt file (similar to result.txt). 
+The results for the random background sampling can be found in the directory sampling and contains per round the randomly sampled SNPs (random_SNPs_<round>.txt) and the randomResult.txt file (similar to result.txt).
