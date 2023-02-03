@@ -1,23 +1,16 @@
 # SNEEP: SNP exploration and functional analysis using epigenetic data
 
-SNEEP is fast method to identify regulatry non-coding SNPs  (rSNPs) that modify the binding sites of Transcription Factors (TFs) for large collections of SNPs provided by the user. SNEEP is based on a statistical approach introduced in our paper 'A statistical approach to identify regulatory DNA variants' (preprint:  ).
+SNEEP is fast method to identify regulatry non-coding SNPs (rSNPs) that modify the binding sites of Transcription Factors (TFs) for large collections of SNPs provided by the user. SNEEP is based on a statistical approach introduced in our paper 'A statistical approach to identify regulatory DNA variants' (preprint: XX).
 We evaluate the effect of a SNP by computing a maximal differential TF binding score, which describes the difference of the TF binding affinity of the two allelic variants of the SNP.  
 
-Beside of the identification of rSNPs and the affected TFs, we allow to add various kinds of cell type or tissue specific epigenetic information either public available or user-specific, like 
--  associate rSNPs to potential target genes using regulatory elements (REMs) linked to genes based on Hi-C data or taken from our EpiRegio database (link epiregio).
-- open chromatin data to exclude SNPs located in region not accessible in the cell type of interest 
-- gene expression data to restrict the analysis to TFs which are expressed. 
-
-Further, SNEEP provides a comprehensive report containing different summary statistics, which
--	highlight TFs whose binding affinity is most often affected by the analyzed SNPs, 
--	list TFs associated to a gain, or a loss of TF binding affinity based on the input data,
--	provide information about how many SNPs are linked to a target gene.  
-
-All statistical assessments are compared against proper random controls to highlight only biologically interesting results. For an example for the GWAS myocardial infarction (downloaded from the GWAS catalog), see here. 
+Beside of the identification of rSNPs that affected TF binding, we allow to add various kinds of cell type or tissue specific epigenetic information either public available or user-specific, like 
+-  associate rSNPs to potential target genes using regulatory elements (REMs) linked to genes based on Hi-C data or taken from our EpiRegio database ([EpiRegio]{https://epiregio.de}).
+- open chromatin data to include only SNPs located in region accessible in the cell type or tissue of interest 
+- gene expression data to restrict the analysis to TFs which are expressed in the cell type or tissue of interest. 
 
 # Build our tool
 
-We provide a bioconda package to install the main functionality of our approach: 
+We provide a bioconda package to install the main functionality of our approach: XX
 
 If you do not want to use our bioconda package, please make sure that the following software is available on your machine: 
 
@@ -26,12 +19,9 @@ If you do not want to use our bioconda package, please make sure that the follow
 - python3.x
 - bedtools (v2.27.1)
 - openmp
-- R (4.0.4) and the following libraries: ggplot2, rmarkdown, tinytex, knitr, kableExtra and bookdown
-- for summary report additional pandoc and pdfcrop (Don't forget to run tinytex::tlmgr_install('pdfcrop') once in R).
+- R (4.0.4) and the following libraries: ggplot2
 
-
-
-To install SNEEP,  run the following commands: 
+To install SNEEP, run the following commands: 
 
 ```
 cd SNEEP/src/
@@ -45,8 +35,8 @@ Additionally, to the GitHub repository, which contains the source code and small
 
 ## dbSNP database (dbSNPs_sorted.txt.gz) 
 
-To identify TFs affected more often than  expected by chance in the given input SNP set, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the dbSNP database and rerun the analysis on these SNPs. 
-In order to sample the SNPs in a fast and efficient manner, we provide a file containing the SNPs of the dbSNP database.  The file is a  slightly modified version of the [public available one]( https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) (file GCF_000001405.38). In detail, we 
+To identify TFs affected more often than expected by chance in the given input SNP set, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the dbSNP database and rerun the analysis on these SNPs. 
+In order to sample the SNPs in a fast and efficient manner, we provide a file containing the SNPs of the dbSNP database.  The file is a slightly modified version of the [public available one]( https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) (file GCF_000001405.38). In detail, we 
 
 -	removed all SNPs overlapping with a protein-coding region (annotation of the [human genome (GRCh38), version 36 (Ensembl 102)]( https://www.gencodegenes.org/human/release_36.html)),
 -	removed all information not important for SNEEP,
@@ -232,26 +222,6 @@ A possible SNEEP run with background sampling can look as following:
 
 Note, that we also associated the SNPs to their potential target genes (as shown in example 3).
 
-TODO: this is not included in the bioconda package right? Ad example PDF 
-To visualize the biologically interesting results, we generate a summary file via RMarkdown. 
-In this summary information about TFs, which are associated to a change in the binding affinity caused by a SNP more often than expected, are presented. 
-To generate the summary file, we provide the Rscript builtPDF.R. As input the 
-
--	absolut path to the SNEEP_output directory,
--	number of sampled background rounds,
--	number of significant changes in the binding affinity a TF must exceed to be considered in the summary file,
--	and the path the source folder (SNEEP/src/) 
-
-must be given.
-So for our current example, we run the following:
-
-```
-Rscript  src/builtPDF.R <absolute-path>/SNEEP/examples/SNEEP_output_background_sampling/ 100 4  src/
-```
-
-The resulting summary pdf is called summaryReport.pdf, and can be found in the SNEEP output directory, thus in our case in the  examples/SNEEP_output_background_sampling/ directory.
-
-
 # Compute scale parameter b for a user-defined TF motif set
 
 To estimate the scale parameter b, we provide the script estimateScalePerMotif.sh which requires the following input: 
@@ -268,9 +238,6 @@ As example we can compute the scale parameters for the  combined TF motif set of
 ```
 bash src/estimateScalePerMotif.sh 200000 examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/scalesPerMotif/ examples/motifNames_combined_Jaspar_Hocomoco_Kellis_human.txt 1.9 /projects/sneep/work/pipelineSNEEP/dbSNP/dbSNPs_sorted.txt <path-to-dbSNPs>
 ```
-
-
-
 
 # Detailed explanation of the output files 
 The output files of a SNEEP run can either be found in the default output directory (SNEEP_output/) or in the user-defined one. In the following the most important output files are explained in more detail: 
@@ -309,10 +276,6 @@ The last 8 entries contain information specific to EpiRegio. For more informatio
 ## Info file (info.txt) 
 
 The file info.txt holds the input parameters used for the SNEEP run. 
-
-## Summary report (summaryReport.pdf)
-
-The file summaryReport.pdf presents our summary analysis and is only generated if the background sampling was performed. All information shown in the file are taken from result.txt, info.txt and TF_count.txt file. The TF_count.txt file contains for each TF how often this TF was significantly affected by a SNP for the input data and each random sampled round. All the tables and figures illustrated in the summary report are explained in the file itself. 
 
 ## Result of the random background sampling
 
