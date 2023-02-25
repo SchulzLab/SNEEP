@@ -10,7 +10,7 @@ Beside of the identification of rSNPs that affected TF binding, we allow to add 
 
 # Build our tool
 
-We provide a bioconda package to install the main functionality of our approach: XX
+SOON: We provide a bioconda package to install the main functionality of our approach.
 
 If you do not want to use our bioconda package, please make sure that the following software is available on your machine: 
 
