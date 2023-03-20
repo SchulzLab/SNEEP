@@ -11,6 +11,7 @@ Beside of the identification of rSNPs that affected TF binding, we allow to add 
 # Build our tool
 
 SOON: We provide a bioconda package to install the main functionality of our approach.
+(need to make sure that bioconda is listed as a conda channal url (check with conda info), otherwise add with conda config --add channels bioconda)
 
 If want to directly install it, please make sure that the following software is available on your machine: 
 
