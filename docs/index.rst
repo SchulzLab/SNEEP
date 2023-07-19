@@ -5,10 +5,10 @@ welcome this is an example
 
 Contents
 --------
-
 .. toctree::
 	:maxdepth: 2
 
-	gettingStarted.rst
-	examples.rst
-	references.rst
+	Getting Started  <gettingStarted>
+	Examples <examples>
+	References <references>
+
