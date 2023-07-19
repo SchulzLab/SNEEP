@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys, os,random, math
 
 EPSILON = 0.001 
@@ -80,7 +82,7 @@ def detemineEntropy(A,C,G,T, infoFile, TF):
 
 		A_, C_, G_, T_ = [],[],[],[]
 		if (motifLength - len(r)) < 7:
-			print(TF)
+		#	print(TF)
 			A_ = A
 			C_ = C
 			G_ = G

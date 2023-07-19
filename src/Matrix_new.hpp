@@ -31,7 +31,8 @@ class Matrix{
 
 	//constructors
 	Matrix();
-	Matrix(int num_row, int num_col);
+	Matrix(int num_row, int num_col); // default initalize matrix with 0
+	Matrix(int num_row, int num_col, T d); // initialize matrix with ds
 	~Matrix<T>(); // deconstructor
 	Matrix(const Matrix<T>&); // copyconstructor
 	int nrow();
@@ -60,6 +61,11 @@ template<typename T> Matrix<T>::Matrix(int num_row, int num_col)
 {
 }
 
+//constructor
+template<typename T> Matrix<T>::Matrix(int num_row, int num_col, T d)
+: num_row_(num_row), num_col_(num_col), matrix_(num_row_*num_col_, d)
+{
+}
 //Deconstructor	
 template<typename T> Matrix<T>::~Matrix<T>()
 {

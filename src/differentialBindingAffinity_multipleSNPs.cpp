@@ -62,6 +62,7 @@ string forwardOrReverse(int distance_); //determines on which strand the motif b
 vector<string> parseHeader(string header, string delim); //parse the header of the fasta file
 void writeHeadersOutputFiles(bool writeOutput,  string& currentOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
 void determineMAFsForSNPs(string SNPsFile,vector<double>& MAF);
+void determineMAFsForLeadSNPs(string SNPsFile,vector<double>& MAF, vector<string>& leadSNPs);
 string getToken(string& line, char delim);
 bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b);
 bool sortby(const tuple<double, string , string, string>& a, const tuple<double,string,  string, string>& b);
@@ -92,6 +93,13 @@ int main(int argc, char *argv[]){
 	info.close();
 
 	io.checkIfSNPsAreUnique(); // removes SNPs from inputSNP list which are not unique  and stores them in info file
+	vector<string>leadSNPs; // a list of all lead SNPs
+	unordered_map<string, vector<string>> proxySNPs; // for each lead SNP a list of al proxy SNPs is provided
+	if (io.getGeneBackground() == true){
+	//	cout << "hier" << endl;
+		io.getInfoSNPs(leadSNPs, proxySNPs);
+	}
+	int numberLeadSNPs = leadSNPs.size();
 	//cout << "checked if SNPs are unique" << endl;
 	//overlap with REMs
 	string SNPFile = io.getSNPs();
@@ -137,18 +145,16 @@ int main(int argc, char *argv[]){
 	bc.mkdir(io.getPFMsDir(), "-p", false); //create dir
 	bc.rm(io.getPFMsDir()); // remove PWMs if there are any
 	if (activeTFs != ""){
-		bc.callPythonScriptCheckActiveMotifs(io.getSourceDir(), io.getActiveTFs(), io.getPFMs(), io.getPFMsDir(), io.getEnsembleIDGeneName(), io.getActivityThreshold(), io.getOutputDir()); 
+		bc.callPythonScriptCheckActiveMotifs(io.getActiveTFs(), io.getPFMs(), io.getPFMsDir(), io.getEnsembleIDGeneName(), io.getActivityThreshold(), io.getOutputDir()); 
 	}else{
-		bc.callPythonScriptSplitPFMs(io.getSourceDir(), io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
+		bc.callPythonScriptSplitPFMs(io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
 		//for snp selex data (see also callBashCommands for more details) 
-		//bc.callPythonScriptSplitPFMsSELEX(io.getSourceDir(), io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
+		//bc.callPythonScriptSplitPFMsSELEX(io.getPFMs(), io.getPFMsDir(), io.getOutputDir()); 
 		
 	}
-//	bool scalesPerMotifs = false;
 	unordered_map<string, double> scales; 
 	if (io.getScaleFile() != ""){
 		io.readScaleValues(io.getScaleFile(),scales);
-//		scalesPerMotifs = true;
 	}
 
 //	for(auto& i : scales){
@@ -162,10 +168,13 @@ int main(int argc, char *argv[]){
 
 	//determine pvalues for PFMs 
 	string motif = "";
-	Matrix<double> transition_matrix(4,4);
-	ifstream transition_file(io.getSourceDir() + "/necessaryInputFiles/transition_matrix.txt");
-        transition_file>> transition_matrix;
-
+	Matrix<double> transition_matrix(4,4,0.25); // default to definde transition matrix with 0.25 
+	cout << transition_matrix << endl;
+	// if transition matrix is specified use this file otherwise assume all transitions are equally likely
+	if (io.getTransitionMatrix() != ""){
+		ifstream transition_file(io.getTransitionMatrix());
+       		transition_file>> transition_matrix;
+	}
 	unordered_map<string, vector<double>> all_pvalues;
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for(int j = 0; j < PWM_files.size(); ++j){ // iterate over all given motifs
@@ -179,7 +188,6 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
-
 	//stores all sequences and the according header
 	string line = "";
 	string helper1 (1000, 'a'); //initialize as string of length 1000 with only a's
@@ -208,10 +216,6 @@ int main(int argc, char *argv[]){
 		writeOutput = true;
 		output = io.openFile(io.getOutputAll(), false);
 	}
-	//if (io.getMaxOutput() != ""){
-	//	outputMax = io.openFile(io.getMaxOutput(), true);
-	//	writeOutputMax = true;
-	//}
 
 	int numMotifs = PWM_files.size();
 	cout << "numMotifs: " << numMotifs << endl;
@@ -299,19 +303,7 @@ int main(int argc, char *argv[]){
 			
 					if (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue()){
 						posSigHit = pos + floor(l/2); //deterime position of the hit	
-
-						//determine differntial binding
-						//if (scalesPerMotifs == true){
-							//cout << motif << "\t" << lenMotif << "\t"<< scales[motif] << endl;
-							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_, scales[motif], lenMotif*2);
-							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, log_, scales[motif], lenMotif*2, rounds);
 						diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], log_, scales[motif], lenMotif*2);
-						//}else{
-							//diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], preLog, helper_preLog, log_, SCALES[lenMotif], lenMotif*2);
-						//	diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l],  log_, SCALES[lenMotif], lenMotif*2);
-						//}
-						//cout <<   log_ << "\t" << lenMotif << "\t" << motif << endl;
-						//stores info maximal diff binding affinity
 						if (diffBinding <= maxDiffBinding){// and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
 							maxDiffBinding = diffBinding;
 							maxPosSigHit = posSigHit;
@@ -374,20 +366,11 @@ int main(int argc, char *argv[]){
 			#pragma omp critical 
 			output << currentOutput;
 		}
-
-		// add preLog to overall_preLog
-		//#pragma omp critical 
-		//vec_overall_preLog.push_back(preLog);
-
 	}
 
 
 	//sort resultAllSNPs based on p-value 
 	sort(resultAllSNPs.begin(), resultAllSNPs.end(),sortby);
-	//check sorting ;
-	//for (auto& elem : resultAllSNPs){ // get vector per entry
-	//	cout << to_string(get<0>(elem)) + '\t' + get<1>(elem)<< endl;
-	//}
 
 	//compute fdr	
 	double snpsXmotifs = numMotifs * numberSNPs; 
@@ -397,20 +380,12 @@ int main(int argc, char *argv[]){
 	cout << "rank bevor correction: " << rank << endl;
 	double previous_pvalue = 1.0;
 
-	//bool sigEntriesOnce = true;// necessary to count the sig entrie only once even if there are more than on TF affected
-	//bool overlappingREMsOnce = true; //same here
-
 	for (auto& elem : resultAllSNPs){ // get vector per entry
 	
 		//compute fdr
 		double p = get<0>(elem);
 		string m = get<1>(elem);
-	//	if (sigEntriesOnce == true){
-	//		sigEntries+=1;
-	//		sigEntriesOnce = false;
-	//	}
 		double helper = min(p*(snpsXmotifs/rank), previous_pvalue);
-	//	cout << get<1>(elem) << "\tp-value:\t" << p << "\tcorrected pvalue\t" << helper << "\trank\t" << rank << "\tsnpsXmotifs/rank\t"<< snpsXmotifs/rank << endl;
 		previous_pvalue = helper;
 		rank--;
 		//if (helper <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ //cutoff based on fdr corrected pvalue
@@ -431,14 +406,9 @@ int main(int argc, char *argv[]){
 	//open info file
 	info = io.openFile(io.getInfoFile(), true); //open info file
 
-	//info << "!\tsigEntryOverlappingREMs: " << sigEntriesOverlappingREM << endl; //write number of entries which are significant and overlap with a REM
-	//info << "!\tsigOnes: " << sigEntries << endl; // write number of entries which are significant
-
 	//write number motifs to output file 
 	info << "!\tnumMotifs: " << numMotifs << endl; // number of used motisf
 
-	
-	
 	//write TFs and co to files
 	string outputDir = io.getOutputDir();
 	ofstream outputTFs;
@@ -458,18 +428,7 @@ int main(int argc, char *argv[]){
 	//Randomly sample SNPs
 	if (rounds > 0){
 	
-		//add values to preLog
-		//cout << "add computed log values to overall_preLog" << endl;
-		//unordered_map<double, double> overall_preLog; 
-		//for(auto& elem : vec_overall_preLog){
-		//	for(auto& e : elem){
-		//		overall_preLog[e.first] = e.second;
-		//	}
-		//}
-		//vec_overall_preLog.clear(); //empty helper_preLog
-
 		cout << "start random sampling" << endl;
-
 
 		//update used motifs	
 		vector<string> randomSampling_motifNames; 
@@ -477,10 +436,11 @@ int main(int argc, char *argv[]){
 		vector<Matrix<double>> randomSampling_PWMs;
 		string c_motif = "";
 		int randomSampling_numMotifs = 0;
+		// if we want to compute a gene bacground we need to consider all TFs and cannot reduce the set of motifs (no speed up)
 		for(int i = 0; i < numMotifs; ++i){ //store motif names only once
 			
 			c_motif = motifNames[i];
-			if (realData_TFs[c_motif] > io.getMinTFCount()){
+			if  (io.getGeneBackground() == true|| realData_TFs[c_motif] > io.getMinTFCount()){
 				randomSampling_numMotifs++;
 				randomSampling_motifNames.push_back(c_motif); //set motif
 				randomSampling_lenMotifs.push_back(lenMotifs[i]);
@@ -496,17 +456,30 @@ int main(int argc, char *argv[]){
 		double pvalue = io.getPvalue(), pvalueDiff = io.getPvalueDiff();
 		string randomDir = outputDir + "sampling";
 		bc.mkdir(randomDir, "-p" , false);
-		determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
+
+		// new strategy: always compute proxy snps of the lead SNPs -> sample only as many SNPs as lead SNPs were available
+		//if (io.getTfBackground() == true){
+			determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
+		//}else{ //only gene background, only sample as many random snps as lead snps
+			// TODO: this command is needed to get the lead snps
+		//determineMAFsForLeadSNPs(io.getSNPBedFile(), MAF, leadSNPs); //read MAF distribution from input SNP file
+		//}
+
 		sort(MAF.begin(), MAF.end(), std::less<double>()); //sort MAF with default operation <
 
 		rsIDsampler s(0.01, io.getdbSNPs(), MAF, bc); //initialize snp sampler
 		MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
-		//for (auto& elem : MAF_counter){ // get vector per entry
-		//	cout << elem.first << " " << elem.second << endl;
-		//}
 		cout << "before sampling" << endl;
-		vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSourceDir(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+		//vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSourceDir(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+		vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
 		cout << "after sampling" << endl;
+		cout << "determine proxy SNPs" << endl;
+		// TODO: introduce tw new parameter: for how many leadSNPs shall we sample proxy SNPs, and where is the file to snipa
+		// sort the sampled SNP files according to their chromosome and sample randomly number of lead SNPs many snps (bash) 
+		// look up proxy SNPs
+		// remove dublicated SNPs
+		// count number of unique SNPs 
+		// rerun statistical analysis 
 
 		string SNP_file = "", SNPs_overlappingREMs = "", bedFile = "", fastaFile = "", currentRound = "";
 		ofstream randomResult;
@@ -516,7 +489,7 @@ int main(int argc, char *argv[]){
 
 			currentRound = to_string(r); // store i as string
 			SNP_file = SNP_filenames[r];
-			SNPs_overlappingREMs = randomDir + "/randomSNPsOverlapiingREMs_" + currentRound + ".bed";
+			SNPs_overlappingREMs = randomDir + "/randomSNPsOverlapingREMs_" + currentRound + ".bed";
 			bedFile = randomDir + "/snpsRegions_" + currentRound + ".bed"; 
 			fastaFile = randomDir + "/snpsRegions_" + currentRound + ".fa"; 
 			randomResult.open(randomDir + "/randomResult_" + currentRound + ".txt"); //open result file
@@ -622,21 +595,8 @@ int main(int argc, char *argv[]){
 							for (int l = 0; l < current_firstSeq.size(); ++l){ 
 			
 								if (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue){
-						
 									current_posSigHit = current_pos + floor(l/2); //deterime position of the hit	
-
-
-									// TODO: adapte for scale -> done but check if it works 
-									//determine differntial binding
-									//if (scalesPerMotifs == true){
-										//cout << "motif: " << current_motif << " corresponding scale: " << scales[current_motif] << endl;
 									current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], current_log_, scales[current_motif], lenMotif*2);
-										//current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l],overall_preLog, preLog,  current_log_, scales[current_motif], lenMotif*2);
-								//	}else{
-								//		current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l],  current_log_, SCALES[lenMotif], lenMotif*2);
-										//current_diffBinding = differentialBindingAffinityBackground(current_firstSeq[l], current_secondSeq[l], overall_preLog, preLog,  current_log_, SCALES[lenMotif], lenMotif*2);
-								//	}
-									//current_allDiffBinding.push_back(make_pair(current_diffBinding, l));
 								
 									//stores info maximal diff binding affinity
 									if (current_diffBinding <= current_maxDiffBinding){// and (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue)){
@@ -652,7 +612,6 @@ int main(int argc, char *argv[]){
 								}	
 							}
 							//ouput maximal binding affinity for the current seq
-							//current_overallResultMax.push_back(make_tuple(current_maxDiffBinding, current_motif, current_corrected_pvalue));
 							current_overallResultMax.push_back(make_tuple(current_maxDiffBinding, current_motif));
 							string value = "";
 							if (current_maxOrientation  == "(f)"){
@@ -662,9 +621,7 @@ int main(int argc, char *argv[]){
 							}
 							current_helperOverallResult[current_motif] = value;
 							current_TFBindingValues[current_motif] = current_maxLog;
-						}//else{
-						//	current_overallResultMax.push_back(make_tuple(2.0, current_motif)); //we need all motifs to  fdr corrected the pvalue
-						//}
+						}
 					}
 					//sort overall_result per seq and all TFs and store maximal one
 					string m = "";
@@ -677,7 +634,6 @@ int main(int argc, char *argv[]){
 						m = get<1>(current_overallResultMax[k]); //motif name
 
 						if (REMs == ""){
-							//currentResult.append(current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + to_string(helper) + '\t'  + current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n');
 							//allows only one thread to write in the output 
 							#pragma omp critical
 							currentResultAllSNPs.push_back(make_tuple(p, m,current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m ,  current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n'));
@@ -686,24 +642,11 @@ int main(int argc, char *argv[]){
 							#pragma omp critical
 							currentResultAllSNPs.push_back(make_tuple(p, m, current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m], current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n'));
 						}
-						//}
 					}
-					//allows only one thread to write in the output 
-					//#pragma omp critical (writeRandomResult)
-					//randomResult << currentResult;
-			//	}
-			
-			// add preLog to overall_preLog
-			//#pragma omp critical 
-			////vec_overall_preLog.push_back(preLog);
 			}
 
 			//sort resultAllSNPs based on p-value 
 			sort(currentResultAllSNPs.begin(), currentResultAllSNPs.end(),sortby);
-			//check sorting 
-			//for (auto& elem : resultAllSNPs){ // get vector per entry
-			//	cout << to_string(get<0>(elem)) + '\t' + get<1>(elem)<< endl;
-			//}
 			//compute fdr
 			//cout << "number of tests: "  << snpsXmotifs << endl;
 			double rank = currentResultAllSNPs.size(); 			
@@ -734,17 +677,6 @@ int main(int argc, char *argv[]){
 			}
 			outputTFs << '\n';
 
-			//add helper_preLog to original preLog
-			//int grr = 0;
-			//for(auto& elem : vec_overall_preLog){
-			//	for(auto& e : elem){
-			//		overall_preLog[e.first] = e.second;
-			//	}
-			//}
-			//vec_overall_preLog.clear(); //empty helper_preLog
-			//cout << "round r: " << r << " einträge helper_preLog: " << grr << endl;  
-			//cout << "size preLog: " << preLog.size() << '\n'<<  endl;
-			//helper_preLog.clear(); //empty helper_preLog
 		}
 		outputTFs.close(); //close TF_counts file
 	}
@@ -806,8 +738,6 @@ bool sortby(const tuple<double, string, string, string>& a, const tuple<double, 
 }
 /*
 / read or determine MAF distribution of the input SNPs
-/
-/
 */
 //TODO: what to do if MAF is not given? 
 void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
@@ -826,21 +756,72 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 		}
 		MAF.push_back(maf);
 	}
+	bedfile.close();
+	return;
+}
+
+/*
+/ read or determine MAF distribution of the input SNPs
+*/
+//TODO: what to do if MAF is not given? 
+void determineMAFsForLeadSNPs(string bedFile, vector<double>& MAF, vector<string>& leadSNPs){
+	string line = "";
+	double maf = 0.0;
+	string helper_maf = "";
+	string info = "";
+	int counter = 0;
+	ifstream bedfile(bedFile); //open sequence file
+	while (getline(bedfile, line, '\n')){ // for each line extract overlapping SNPs
+		getToken(line, '\t'); //skip chr
+		getToken(line, '\t'); //skip start
+		getToken(line, '\t'); //skip end
+		info = getToken(line, ';'); //chr:start-end
+		//cout << info << endl;
+		info = info + '\t' +   getToken(line, ';'); // wildtype 
+		//cout << info << endl;
+		info = info + '\t' +  getToken(line, ';'); // mutatant
+		//cout << info << endl;
+		info = info + '\t' +  getToken(line, ';'); // rsID
+		//cout << info << endl;
+		
+		helper_maf = getToken(line, ';');
+		info = info + '\t' + helper_maf;
+		
+		try{ //throws an error when MAF is smaller than double precisoins allows -> set after		
+			maf = stod(helper_maf);
+		}catch (const std::out_of_range& oor){
+			maf = -1.0;	
+		}catch (const std::invalid_argument inv){
+			maf = -1.0;	
+		}
+		if (find(leadSNPs.begin(), leadSNPs.end(), info) != leadSNPs.end()){
+			counter ++;
+
+ 			MAF.push_back(maf);
+		}
+	}
+	cout << "Number of lead SNPs: " << MAF.size() << endl;
+	bedfile.close();
 	return;
 }
 
 vector<double> readFrequence(string frequence){
 
 	vector<double> freq;
-	if(frequence == "")
-		throw invalid_argument("path to frequence.txt is not set");
-	
-	ifstream file(frequence);
-	if (not file.is_open())
-		throw invalid_argument("Cannot open frequence.txt");
-	string word = "";
-	while (file >> word){
-		freq.push_back(stod(word));
+	if(frequence == ""){
+		freq.push_back(0.25);
+		freq.push_back(0.25);
+		freq.push_back(0.25);
+		freq.push_back(0.25);
+		//throw invalid_argument("path to frequence.txt is not set");
+	}else{
+		ifstream file(frequence);
+		if (not file.is_open())
+			throw invalid_argument("Cannot open frequence.txt");
+		string word = "";
+		while (file >> word){
+			freq.push_back(stod(word));
+		}
 	}
 	return freq;	
 }
@@ -1030,6 +1011,11 @@ string createMutatedSeq(string header, string&  seq, vector<string>& splittedHea
 
 	int mut = pos - start; //position of the mutation in relation to the sequence length (should be at position 50)
 //	cout << mut << endl;
+	// the previous code is not working if non of the annotated alleles is observed in the wildtype.... 
+	seq[mut] = var1;
+	result[mut] = var2;	
+	direction = "forward";
+/*
 	//check for forward strand
 	if (toupper(seq[mut]) == var1){ //forward strand var1 in reference seq
 	//	cout << "var1 is reference genome forward" << endl;
@@ -1042,7 +1028,7 @@ string createMutatedSeq(string header, string&  seq, vector<string>& splittedHea
 		//result[mut] = var1;
 		seq[mut] = var1; // since result is a copy from the original seq ->  result[mut] = var2
 	//check for reverse strand
-	}/*else if (toupper(seq[mut]) == complement[var1]){ //reverse strand var1 in reference seq
+	}else if (toupper(seq[mut]) == complement[var1]){ //reverse strand var1 in reference seq
 		cout << "var1 is reference genome reverse" << endl;
 		direction = "reverse";
 		result[mut] = complement[var2];
@@ -1146,37 +1132,11 @@ double differentialBindingAffinity(double first_elem, double second_elem,  doubl
 
 	double log_first = 0.0, log_second = 0.0;
 	
-	//if (round > 0){
-
-	//	auto found = pre_log.find(first_elem);
-
-		//cout <<"first elem: " << first_elem << endl;
-		//cout <<"second elem: " << second_elem << endl;
-	//	if (found != pre_log.end()){ //check if the log of div was calculated bevore
-	//		log_first = found->second;
-	//	}else{
-	//		log_first = log(first_elem);
-	//		pre_log[first_elem] = log_first;		
-	//	}
-	//	found = pre_log.find(second_elem);
-	//	if (found != pre_log.end()){ //check if the log of div was calculated bevore
-	//		log_second = found->second;
-	//	}else{
-	//		log_second = log(second_elem);
-	//		pre_log[second_elem] = log_second;		
-	//	}
-	//}else{
 	log_first = log(first_elem);
 	log_second = log(second_elem);
-	//}
 
 	log_ = log_first-log_second;
-	//cout <<"log diffBinding: " << log_ << endl;
 
-	//determine pvalue old versions
-	//symmetric laplace(0,1) 
-	//pvalue = 2* cdf_laplace(0.0, 1.0, -abs(log_));
-	//pvalue = 2* cdf_laplace(0.0, 0.368, -abs(log_));
 	//determine pvalue
 	pvalue = cdf_laplace_abs_max(scale, numberKmers, log_);
 	//cout << "pvalue: " << pvalue << endl;
@@ -1216,49 +1176,4 @@ void writeHeadersOutputFiles(bool writeOutput, string& currentOutput,  string he
 	if (writeOutput){
 		currentOutput.append("\n#\tinfo: " + header + "\n#\twildtyp: " + seq + "\n" + "#\tmutated: " +  mutSeq + "\n\n.\tpos\tBindAff_Var1\tBindAff_Var2\tlog(div)\tpvalue_diffBindAff\n");
 	}
-	//header output_max
-	//if (writeMaxOutput){
-	//	currentMaxOutput.append("snp\t" + chr+ ":" + to_string(pos) + "-" + to_string(pos + 1)+ '\t' +  var1 +  '\t' +  var2 +  "\n.\tmotif\tpos\tBindAff_Var1\tBindAff_Var2\tlog(div)\tpvalue_diffBindAff\n");
-	//}
 }
-		/*vector<double> keys;
-		//int numSNPs = 0;
-		#pragma omp parallel num_threads(2)
-		{
-			#pragma omp single nowait
-			{
-				cout << "start store dbSNPs" << endl;
-				dbSNPs = s.storeDbSNPs(); // read dbSNPs 
-				cout << "end store dbSNPs" << endl;
-			}
-			#pragma omp single nowait
-			{
-
-
-				//Step 1: for given input SNPs determine MAF and create plot with R which shows the distribution
-				cout << "start write histogram and read MAF_counter" << endl;
-
-				ofstream histogram;
-				string file = outputDir + "histogram.txt";
-				histogram.open(file);
-				histogram << "SNP\tMAF\n"; //write header of the file
-				for (auto i : MAF){
-					histogram << "input\t" << i << "\n"; 
-				}
-				histogram.close();
-				//plot histogram
-				bc.callHistogram(file, outputDir + "/histogram_inputSNPs.pdf", sourceDir);
-		
-				//Step: 2 determine background
-				MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
-				for(auto& i : MAF_counter){ //determine keys of the unordered map
-					keys.push_back(i.first);
-					//numSNPs += i.second;
-				}
-				cout << "MAF" << endl;
-				for(auto& i : MAF_counter){
-					cout << i.first << "\t" << i.second << endl;
-				}
-				cout << "end write histogram and read MAF_counter" << endl;
-			}
-		}*/

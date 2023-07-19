@@ -34,6 +34,7 @@ class InOutput{
 	void checkIfSNPsAreUnique();
 	void parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed);
 	void readScaleValues(string scaleFile, unordered_map<string, double>& scales);
+	void getInfoSNPs(vector<string>& leadSNPs, unordered_map<string, vector<string>>& proxySNPs);
 
 	//getter
 	double getPvalue();
@@ -56,7 +57,7 @@ class InOutput{
 	string getPFMsDir();
 	string getEnsembleIDGeneName();
 	double getActivityThreshold();
-	string getSourceDir();
+	//string getSourceDir();
 	string getBedFileInDels();
 	string getMappingGeneNames();
 	string getResultFile();
@@ -71,14 +72,15 @@ class InOutput{
 	int getSeed();
 	int getMinTFCount();
 	string getScaleFile();
+	bool getGeneBackground();
+	bool getTfBackground();
+	string getTransitionMatrix();
 
 	private: //glaube das sollte nicht private sein
 	int num_threads = 1; //-n
 	double pvalue = 0.05; //-p	
 	double pvalue_diff = 0.01; //-c
-	//string frequence = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/project_Luxembourg/frequence.txt"; //-b
-	string frequence = "necessaryInputFiles/frequency.txt"; //-b
-	//string mutatedSequences = ""; //-s
+	string frequence = ""; //-b
 	string footprint = ""; //-f path to footprint file
 	string outputDir = "SNEEP_output/"; //-o
 	string allOutput =  ""; //-d 
@@ -101,7 +103,8 @@ class InOutput{
 	string notConsideredSNPs = "";
 	string ensembleGeneName = "";
 	double thresholdTFActivity = 0.0;
-	string sourceDir = "./";
+	string transition_matrix = "";
+	//string sourceDir = "";
 	//string genome = "/MMCI/MS/EpiregDeep/work/TFtoMotifs/hg38.fa";
 	//string genome = "/home/nbaumgarten/hg38.fa";
 	string genome = "";
@@ -112,7 +115,9 @@ class InOutput{
 	string dbSNPs = "";
 	int seed = 1;
 	int minTFCount = 0;
-	string scaleFile = "necessaryInputFiles/estimatedScalesPerMotif_1.9.txt";
+	bool geneBackground = false;
+	bool tfBackground = false;
+	string scaleFile = "";
 };
 
 //construtor
@@ -128,7 +133,8 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:i:g:j:k:l:q:h")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:g:j:k:l:q:uvhx:")) != -1) {
+	//while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:i:g:j:k:l:q:uvh")) != -1) {
        		switch (opt) {
 		case 'o':
 			outputDir = optarg;
@@ -182,10 +188,6 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			thresholdTFActivity = stod(optarg);
 			cout << "-d threshold TF activity: " << thresholdTFActivity << endl;
 			break;
-		case 'i':
-			sourceDir = optarg;
-			cout << "-i source: " << sourceDir << endl;
-			break;
 		case 'g':
 			mappingGeneNames = optarg;
 			cout << "-g ensemblID to GeneName mapping: " << mappingGeneNames << endl;
@@ -194,10 +196,6 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			seed = stoi(optarg);
 			cout << "-l seed: " << seed << endl;
 			break;
-//		case 'x':
-//			genome = optarg;
-//			cout << "-x path to genome: " << genome << endl;
-//			break;
 		case 'j':
 			samplingRounds = stoi(optarg);
 			cout << "-j number of randmoly sampled backgrounds: " << samplingRounds << endl;
@@ -209,6 +207,18 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 		case 'q':
 			minTFCount = stoi(optarg);
 			cout << "-q min TF count: " << minTFCount << endl;	
+			break;
+		case 'u':
+			geneBackground = true;
+			cout << "-u perform gene background analysis: " << geneBackground << endl;	
+			break;
+		case 'v':
+			tfBackground = true;
+			cout << "-v perform TF enrichment  analysis: " << tfBackground << endl;	
+			break;
+		case 'x':
+			transition_matrix = optarg;
+			cout << "-w transition matrix: " << transition_matrix << endl;
 			break;
 		case 'h':
 			callHelp();
@@ -240,7 +250,16 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 		backgroundSeq = outputDir + "backgroundSequences.bed";
 	}
 	if (optind + 3 > argc)  // there should be 3 more non-option arguments
-		throw invalid_argument("missing motif file in TRANSFAC format, bed-like SNP file and/or genome file"); // TODO: besser in motif file umwandeln
+		throw invalid_argument("missing motif file in TRANSFAC format, bed-like SNP file and/or genome file \n for help use  -h"); // TODO: besser in motif file umwandeln
+	if (samplingRounds > 0 and dbSNPs.length() == 0){
+		throw invalid_argument("for a background analysis the path to the sorted dbSNP file is requiered\n for help use -h"); // both parameters need to be set
+	}
+	if (activeTFs.length() > 0 and (thresholdTFActivity == 0.0  or ensembleGeneName.length() == 0 )){
+		throw invalid_argument("either -d or -e is not set but requiered\n for help -h"); 
+	} 
+	if (samplingRounds == 0 and (tfBackground ||  geneBackground)){
+		throw invalid_argument("number of backgroudn rounds -j (and dbSNP file -k) musst be specificed\n for help use -h"); 
+	}
 
 	PFMs = argv[optind++];
 	cout <<"PFM dir: " << PFMs << endl;
@@ -273,12 +292,14 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-n number threads: " << io.num_threads << 
 	"\n#\t-e ensemblID geneName mapping TFs: " << io.ensembleGeneName << 
 	"\n#\t-d threshold TF activity: " << io.thresholdTFActivity <<
-	"\n#\t-i path to the source dir (SNEEP gitHub Repository): " << io.sourceDir <<
 	"\n#\t-g EnsemblID to GeneName mapping REMs: " << io.mappingGeneNames << 
 	"\n#\t-j rounds of background sampling: " << io.samplingRounds <<
 	"\n#\t-k path to dbSNPs: " << io.dbSNPs <<
 	"\n#\t-l start seed for random sampling: " << io.seed <<
 	"\n#\t-q min TF count: " << io.minTFCount << 
+	"\n#\t-u perform gene background analysis: " << io.geneBackground <<	
+	"\n#\t-v perform TF enrichment  analysis: " << io.tfBackground <<	
+	"\n#\t-x transition matrix for binding affinity p-value: " << io.transition_matrix <<	
 	"\n#\tPFMs: " << io.PFMs << 
 	"\n#\tSNPs file: " << io.snpsNotUnique << 
 	"\n#\tpath to genome: " << io.genome <<
@@ -478,8 +499,8 @@ void InOutput::callHelp(){
 	"-n number threads (default 1)\n" <<
 	"-p pvalue for motif hits (default 0.05)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
-	"-b base frequency for PFMs -> PWMs (default /necessaryInputFiles/frequency.txt)\n" <<
-	"-s file where the computed scales per motif are stored (default necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<
+	"-b base frequency for PFMs -> PWMs ( /necessaryInputFiles/frequency.txt)\n" <<
+	"-s file where the computed scales per motif are stored ( necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<
 	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
 	"-f additional footprint/open chromatin region file in bed file format\n" <<
 	"-m if flag is set, the  maximal differential binding affinity per SNP is printed\n"<<
@@ -490,10 +511,13 @@ void InOutput::callHelp(){
 	"-g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
 	"-j rounds sampled background (default 0)\n"
 	"-k path to sorted dbSNP file (if our provided file is used only SNPs in coding regions are considered)\n"
-	"-i path to the source GitHub dir (default .)\n"<<
+	//"-i path to the source GitHub dir (default .)\n"<<
 	"-l start seed (default 1)\n" <<
 	"-q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)\n" << 
-	"-h help\n"<<
+	"-u gene background analysis is performed (defaul false), -j must be set \n" <<
+	"-v perform TF enrichment  analysis (default  false), -j must be set\n" <<	
+	"-x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)" <<
+	"-h help\n" <<
 	"transfac PFM file,  bed-like SNP file and path to genome file (fasta format)  must be given"<<endl;
 }
 
@@ -513,6 +537,77 @@ int InOutput::CountEntriesFirstLine(string inputFile, char delim){
 	//cout << "entries: " << entries << endl;
 	return entries;
 }
+
+void InOutput::getInfoSNPs(vector<string>& leadSNPs, unordered_map<string,vector<string>>& proxySNPs){
+
+	ifstream input(snps); //open file
+	string chr, start, end, allele1, allele2, rsID, maf, info, line, helper;
+	//read file
+	char delim = '\t';	
+	string snp = "";
+	int counter = 0;
+	int c = 0;
+	//vector<string> c_m;
+	while (getline(input, line, '\n')){
+		//cout << line << endl;
+		chr =  getToken(line,delim);
+		start =  getToken(line,delim);
+		end =  getToken(line,delim);
+		allele1 =  getToken(line,delim);
+		allele2 =  getToken(line,delim);
+		rsID =  getToken(line,delim);
+		maf =  getToken(line,delim);
+		info =  line;
+		//if (rsID == "."){
+		//	cout << chr << " " << start << " " << end <<  " " << rsID << endl;
+		//}
+		
+		snp = chr + ":" + start + "-" + end + '\t' + allele1 + '\t' + allele2 + '\t' + rsID + '\t' + maf;
+		
+		if (info =="-"){ //identified lead snp
+			leadSNPs.push_back(snp);
+
+			//if (maf != "-"){
+			//	c_m.push_back(rsID);
+			//}
+		}
+
+		// store per lead snp the proxy snps
+		
+		else{ // the snp is a proxySNP
+		// is there more than one lead SNPs associated to the current SNP?
+			counter = count(info.begin(), info.end(), ',');
+			c += counter;
+			//cout << counter << " " << info << endl;
+			//cout << counter << endl;
+			for (int i=0; i<counter; ++i){
+				//cout << i << endl;
+				// split and add rsID
+				helper = getToken(info, ',');
+				if (proxySNPs.find(helper) != proxySNPs.end()){ // lead snp is already in map
+					vector<string> a = proxySNPs[helper]; // add proxy SNPs to all lead SNPs
+					a.push_back(rsID);
+					proxySNPs[helper] = a;
+
+				}else{
+					vector<string> a {rsID};
+					proxySNPs[helper] = a;
+				}
+			}
+			//last rsID or of no , is found
+			if (proxySNPs.find(info) != proxySNPs.end()){ // lead snp is already in map
+				vector<string> a = proxySNPs[info]; // add proxy SNPs to all lead SNPs
+				a.push_back(rsID);
+				proxySNPs[info] = a;
+
+			}else{
+				vector<string> a {rsID};
+				proxySNPs[info] = a;
+			}
+		}
+	}
+}
+
 void InOutput::checkIfSNPsAreUnique(){
 
 	ifstream input(snpsNotUnique); //open file
@@ -747,11 +842,6 @@ string InOutput::getFootprints(){
 string InOutput::getScaleFile(){
 	return this->scaleFile;
 }
-
-//string InOutput::getMutatedSequences(){
-//	return this->mutatedSequences;
-//}
-
 bool InOutput::getMaxOutput(){
 	return this->maxOutput;
 }
@@ -807,9 +897,6 @@ string InOutput::getEnsembleIDGeneName(){
 double InOutput::getActivityThreshold(){
 	return this->thresholdTFActivity;
 }
-string InOutput::getSourceDir(){
-	return this->sourceDir;
-}
 string InOutput::getBedFileInDels(){
 	return this->bedFileInDels;
 }
@@ -828,9 +915,6 @@ string InOutput::getGenome(){
 int InOutput::getRounds(){
 	return this->samplingRounds;
 }
-//string InOutput::getCodingRegions(){
-//	return this->codingRegions;
-//}
 int InOutput::getConsideredSNPs(){
 	return this->consideredSNPs;
 }
@@ -848,5 +932,14 @@ int InOutput::getNumberThreads(){
 }
 int InOutput::getMinTFCount(){
 	return this->minTFCount;
+}
+bool InOutput::getGeneBackground(){
+	return this->geneBackground;
+}
+bool InOutput::getTfBackground(){
+	return this->tfBackground;
+}
+string InOutput::getTransitionMatrix(){
+	return this->transition_matrix;
 }
 #endif/*HANDLEINOUTPUT_HPP*/

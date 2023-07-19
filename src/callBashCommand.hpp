@@ -20,16 +20,19 @@ class BashCommand{
 	void getFasta(string bed_file, string output, string options);
 	void mkdir(string dir, string options, bool remove);
 	void rm(string dir);
-	void callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_id, double threshold, string outputDir);
-	void callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
-	void callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
+	//void callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_id, double threshold, string outputDir);
+	void callPythonScriptCheckActiveMotifs(string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_id, double threshold, string outputDir);
+	//void callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
+	void callPythonScriptSplitPFMs(string TransfacPFMs, string PFMsDir, string outputDir);
+	//void callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
+	void callPythonScriptSplitPFMsSELEX(string TransfacPFMs, string PFMsDir, string outputDir);
 //	void callPythonScriptSplitSEMs(string sourceDir, string TransfacPFMs, string PFMsDir);
 	void bedtoolsRandom(int len, int num, int seed, string genomes, string output);
 	void cut(string options, string inputFile, string outputFile);
 	void bedtoolsShuffle(string randomSequences, string genomesFile, string excludedSeq, int seed, string options, string output);
 	void anyCommand(string command);
 	void sed(string options, string input, string output);
-	void callHistogram(string input, string output, string sourceDir);
+	//void callHistogram(string input, string output, string sourceDir);
 	string getGenomeFile();
 
 	private:
@@ -83,28 +86,34 @@ void BashCommand::mkdir(string dir, string options, bool remove){
 	return;
 }	
 
-void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold, string outputDir){
+//void BashCommand::callPythonScriptCheckActiveMotifs(string sourceDir, string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold, string outputDir){
+void BashCommand::callPythonScriptCheckActiveMotifs(string activeTFs, string TransfacPFMs, string PFMsDir, string ensemble_name, double threshold, string outputDir){
 //	cout << "sourceDir: " << sourceDir<< "/src/ activeTFs: " << activeTFs << " PFMs: " << TransfacPFMs << "PFMdir: " << PFMsDir << " ensembl names: " << ensemble_name << " threshold: " << threshold << endl; 
 
 	//string command = "python3 ./" + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold);
-	string command = "python3 "  + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold) + " " +  outputDir + "/motifInfo.txt";
+	//string command = "python3 "  + sourceDir + "/src/seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold) + " " +  outputDir + "/motifInfo.txt";
+	string command = "seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold) + " " +  outputDir + "/motifInfo.txt";
 //	cout << "command: " << command << endl;
 
 	system(command.c_str());
 	return;
 }
 
-void BashCommand::callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
+//void BashCommand::callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
+void BashCommand::callPythonScriptSplitPFMs( string TransfacPFMs, string PFMsDir, string outputDir){
 	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
-	string command = "python3 " + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
+	//string command = "python3 " + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
+	string command = "seperatePFMs.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
 	system(command.c_str());
 	return;
 }
 
 //only for snp selex data from f1000 paper https://f1000research.com/articles/11-33#ref6
-void BashCommand::callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
+//void BashCommand::callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
+void BashCommand::callPythonScriptSplitPFMsSELEX(string TransfacPFMs, string PFMsDir, string outputDir){
 	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
-	string command = "python3 " + sourceDir + "/src/seperatePFMs_SNP_SELEX.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
+	//string command = "python3 " + sourceDir + "/src/seperatePFMs_SNP_SELEX.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
+	string command = "seperatePFMs_SNP_SELEX.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
 	cout << command << endl;
 	system(command.c_str());
 	return;
@@ -161,13 +170,13 @@ void BashCommand::bedtoolsShuffle(string randomSequences, string genomesFile, st
 	return;
 }
 
-void BashCommand::callHistogram(string input, string output, string sourceDir){
-
-	string command = "Rscript " + sourceDir + "/src/histogram.R " + input + " " + output;
-	
-	system(command.c_str());
-
-}
+//void BashCommand::callHistogram(string input, string output, string sourceDir){
+//
+//	string command = "Rscript " + sourceDir + "/src/histogram.R " + input + " " + output;
+//	
+//	system(command.c_str());
+//
+//}
 
 void BashCommand::anyCommand(string command){
 	system(command.c_str());
