@@ -7,10 +7,6 @@ SNEEP is fast method to identify regulatory non-coding SNPs (rSNPs) that modify 
 A summary of the functionalities is shown below: 
 
 
-
-
-Contents
---------
 .. toctree::
 	:maxdepth: 2
 
