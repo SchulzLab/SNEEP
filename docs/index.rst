@@ -7,8 +7,9 @@ Contents
 --------
 
 .. toctree::
+	 :maxdepth: 2
 
-	gettingStarted
-	examples
-	references
+	gettingStarted.rst
+	examples.rst
+	references.rst
 
