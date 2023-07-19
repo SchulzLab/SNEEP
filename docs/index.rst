@@ -14,7 +14,7 @@ Contents
 .. toctree::
 	:maxdepth: 2
 
-	Getting Started  <gettingStarted>
-	Examples <examples>
-	References <references>
+   Getting Started  <gettingStarted>
+   Examples <examples>
+   References <references>
 
