@@ -43,7 +43,7 @@ We provide a test script to verify if your installation worked. To download the 
 
   clone git@github.com:SchulzLab/SNEEP.git
 
-, download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and unzip the files. 
+download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and unzip the files. 
 
 Additional a reference genome in fasta format is requiered. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
 
@@ -81,13 +81,13 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 
   differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
 
-Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
+Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section XX. The run takes about XX to XX minutes. 
 
 
 Detailed description of the requiered input files
 ----------------------------------------------------
 
-We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  
+We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory TODO: provide path.  
 
 The required bed-like SNP file is a tab-separated file containing the following entries: 
 
@@ -109,7 +109,7 @@ An example of a properly formated SNP files can be found below:
   chr12   111569951       111569952       G       C       rs653178        -1
 
 
-If you want to consider a SNP, which has multiple alternative alleles like for instance [rs11206510](https://www.ncbi.nlm.nih.gov/snp/rs11206510) (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
+If you want to consider a SNP, which has multiple alternative alleles like for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
 
 
   chr1    55030365        55030366        A       T       rs11206510      0.1018
