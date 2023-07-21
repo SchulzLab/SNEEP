@@ -59,7 +59,9 @@ To run our tests, please direct into the SNEEP folder downloaded from GitHub and
 
 .. code-block:: console
 
-  bash runTests.sh <pathToGenome> <pathToZenodoDir>
+  bash runTests.sh <pathToGenome>    <pathToInteractions>
+
+where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo repository and  <pathToInteractions> needs to be the path to one of the 
 
 
 
