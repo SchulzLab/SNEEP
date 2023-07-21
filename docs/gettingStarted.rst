@@ -48,6 +48,7 @@ and our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_. Unzip the
 Additional a reference genome in fasta format is requiered. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
 
 .. example::
+
   >chr1
   ATCGGGTCA…
   >chr2
