@@ -79,7 +79,7 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 
 .. code-block:: console
 
-  ./src/differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
+  differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
 
 Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
 
@@ -87,9 +87,9 @@ Per default the result is stored in the directory ‘SNEEP_output’. The file �
 Detailed description of the requiered input files
 ----------------------------------------------------
 
-(1) We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  
+We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  
 
-(2) The required bed-like SNP file is a tab-separated file containing the following entries: 
+The required bed-like SNP file is a tab-separated file containing the following entries: 
 
 -	chr,
 -	start position (0-based),
@@ -101,7 +101,7 @@ Detailed description of the requiered input files
 
 An example of a properly formated SNP files can be found below: 
 
-.. example::
+
   chr1    109274569       109274570       G       A       rs7528419       0.2009
   chr1    109275907       109275908       C       T       rs646776        0.2384
   chr1    154424939       154424940       G       T       rs12118721      1e-07
@@ -111,7 +111,7 @@ An example of a properly formated SNP files can be found below:
 
 If you want to consider a SNP, which has multiple alternative alleles like for instance [rs11206510](https://www.ncbi.nlm.nih.gov/snp/rs11206510) (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
 
-.. example::
+
   chr1    55030365        55030366        A       T       rs11206510      0.1018
   chr1    55030365        55030366        C       T       rs11206510      0.1018
   chr1    55030365        55030366        G       T       rs11206510      0.1018
@@ -119,7 +119,7 @@ If you want to consider a SNP, which has multiple alternative alleles like for i
 
 SNEEP can only handle mutations effecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Also duplicated entries are only considered once.
 
-(3) In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
+In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
 
 .. example::
   >chr1
