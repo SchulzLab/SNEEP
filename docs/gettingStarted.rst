@@ -24,9 +24,12 @@ If you want to directly install SNEEP, please clone our `GitHub repository <http
 
 To build SNEEP, run the following commands: 
 
+.. code-block:: console
 
   cd SNEEP/src/
   make
 
+
+Please add the path to our software (SNEEP/src) to our PATH environment (otherwise internally called scrips might not be found)
 
 We tested the code and the Makefile only on a linux machine. 
