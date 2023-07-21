@@ -65,8 +65,8 @@ So, the resulting command is:
  
 Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
 
-Example 2: Add open chromatin regions of the cell type of interest
--------------------------------------------------------------------
+Example 2: Consider only SNPs in open chromatin of the cell type ir tissue of interest
+---------------------------------------------------------------------------------------
 
 If open chromatin data of your cell type of interest is available, it is possible to integrate this data and automatically exclude SNPs from the analysis in closed, most likely inactive chromatin regions. 
 Therefore, a bed-file holding the open chromatin regions can be specified using the flag -f. 
@@ -88,7 +88,7 @@ The resulting SNEEP call is
 
   differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/  -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_m    atrix.txt -f ENCFF199VHV.bed  -c 0.001 -n 10 -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed <pathToGenome>
   
-Example 3: Associate the SNPs, which significantly affect the binding behavior of a TF to their target genes
+Example 3: Associate regulatory SNPs to their target genes
 ------------------------------------------------------------------------------------------------------------
 
 To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see XX). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
@@ -97,7 +97,7 @@ To associate the target genes, we need to specify a file that holds enhancer-gen
 
   differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/   -r <pathToInteractions> -g ensemblID_GeneName.txt -c 0.001 -n 10 necessaryInputFiles/estimatedScalesPerMotif_1.9.txt -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed ${genome}
 
-Example 4: Compute a proper random background control and highlight the cell-ype specific TFs
+Example 4: Compute a proper random background control and highlight the cell type specific TFs
 ---------------------------------------------------------------------------------------------
 
 To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning set -j to 100. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt) which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seed for runs with different input SNPs. The flag -q is used to speed up the background sampling by exclude TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
@@ -108,6 +108,3 @@ A possible SNEEP run with background sampling can look as following:
 .. code-block:: console
 
   differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -c 0.001 -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt  -n 20 -j 100 -k <pathTodbSNP> -l 2 -q 0 -r <pathToInteractions> -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed ${geno    me}
-
-
-
