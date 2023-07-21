@@ -37,16 +37,15 @@ We tested the code and the Makefile only on a linux machine.
 Testing your installation 
 ==========================
 
-We provide a test script to verify if your installation worked. To download the test data and scripts, please clone the latest version of our GitHub repository:
+We provide a test script to verify if your installation worked. To download the test data and scripts, please clone the latest version of our GitHub repository
 
 .. code-block:: console
 
   clone git@github.com:SchulzLab/SNEEP.git
 
-and our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_. Unzip the files. 
+, download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and unzip the files. 
 
 Additional a reference genome in fasta format is requiered. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
-
 
 .. example::
   >chr1
@@ -54,14 +53,13 @@ Additional a reference genome in fasta format is requiered. The different chromo
   >chr2
   TTTGAGACCAT…
 
-
-To run our tests, please direct into the SNEEP folder downloaded from GitHub and perform 
+To run our tests, please redirect into the SNEEP folder downloaded from GitHub and perform 
 
 .. code-block:: console
 
-  bash runTests.sh <pathToGenome>    <pathToInteractions>
+  bash runTests.sh <pathToGenome> <pathTodbSNP>  <pathToInteractions>
 
-where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo repository and  <pathToInteractions> needs to be the path to one of the 
+where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo repository and  <pathToInteractions> needs to be the path to one of interactiosn file e.g. interactionsREM_PRO_HiC.txt
 
 
 
