@@ -4,8 +4,7 @@ SNEEP is fast method to identify regulatry SNPs (rSNPs) that modify the binding 
 
 The full documentation is available on [Read the Docs](https://sneep.readthedocs.io/en/latest/index.html)
 
-
-TODO: add sneep logo
+![sneep_logo.png](sneep_logo.png)
 
 ## News
 XX
