@@ -72,9 +72,24 @@ The following 3 files are required as minimal input to run SNEEP:
 2)	a bed-like SNP file,
 3)	a reference genome file in fasta format.
 
-We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  
+Minimal example
+---------------
 
-The required bed-like SNP file is a tab-separated file containing the following entries: 
+To try SNEEP with the minimal required input, make sure you are in the SNEEP folder and run: 
+
+.. code-block:: console
+
+  ./src/differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
+
+Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
+
+
+Detailed description of the requiered input files
+----------------------------------------------------
+
+(1) We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  
+
+(2) The required bed-like SNP file is a tab-separated file containing the following entries: 
 -	chr,
 -	start position (0-based),
 -	end position (0-based),
@@ -103,16 +118,16 @@ If you want to consider a SNP, which has multiple alternative alleles like for i
 
 SNEEP can only handle mutations effecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Also duplicated entries are only considered once.
 
-Minimal example
----------------
+(3) In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
 
-To try SNEEP with the minimal required input, make sure you are in the SNEEP folder and run: 
+.. example::
+  >chr1
+  ATCGGGTCA…
+  >chr2
+  TTTGAGACCAT…
 
-.. code-block:: console
+For the provided examples in the following, please use genome version hg38.
 
-  ./src/differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
-
-Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section [Detailed explanation of the output files](Detailed-explanation-of-the-output-files). The run takes about 2 to 3 minutes. 
 
 
 
