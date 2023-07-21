@@ -90,6 +90,7 @@ Detailed description of the requiered input files
 (1) We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory (SNEEP/examples/ combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt).  
 
 (2) The required bed-like SNP file is a tab-separated file containing the following entries: 
+
 -	chr,
 -	start position (0-based),
 -	end position (0-based),
