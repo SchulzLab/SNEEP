@@ -6,6 +6,9 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 
 ![sneep_logo.png](sneep_logo.png)
 
+## Note:
+Our Read the Doc documentation and our conda package are still under development....
+
 ## News
 XX
 
