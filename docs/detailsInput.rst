@@ -42,7 +42,8 @@ In order to sample the SNPs in a fast and efficient manner, we provide a file (i
 Flag -r and -g: Epigenetic interactions
 =============================================== 
 We provide three files (in our `Zenodo repository <??>`_) containing epigenetic interactions associated to target genes:
--	interactionsREMs.txt provides regulatory elements (REMs) linked to their target genes. The data was derived with the STITCHIT algorithm, which is a peak-calling free approach to identify gene-specific REMs by analyzing epigenetic signal of diverse human cell types with regard to gene expression of a certain gene. For more information, you can also have a look at our public `EpiRegio database https://epiregio.de`_ holding all REMs stored in the interactionsREMs.txt file. 
+
+-	interactionsREMs.txt provides regulatory elements (REMs) linked to their target genes. The data was derived with the STITCHIT algorithm, which is a peak-calling free approach to identify gene-specific REMs by analyzing epigenetic signal of diverse human cell types with regard to gene expression of a certain gene. For more information, you can also have a look at our public `EpiRegio database <https://epiregio.de>`_ holding all REMs stored in the interactionsREMs.txt file. 
 -	interactionsREM_PRO.txt: Additional to the REMs the promoters (+/- 500 bp around TSS) of the genes are included as regions linked to their target genes. 
 -	interactionsREMs_PRO_HiC.txt: This file further includes enhancer-gene links predicted with the ABC algorithm on human heart data from a `published paper from Anene-Nzelu *et al.* <https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.120.046040?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%20%200pubmed>`_.
 It is also possible to use your own epigenetic interactions file or extend on of ours with for instance cell type specific data. Please stick to our tab-separated format: 
