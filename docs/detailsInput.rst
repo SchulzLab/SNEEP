@@ -3,6 +3,8 @@
 Details about the optional parameters
 =======================================
 
+In the following we outline all optinal parameters which can be used to run SNEEP in more detail. 
+
 Flag -o: specify an output folder
 ===================================
   
