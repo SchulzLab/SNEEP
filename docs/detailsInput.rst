@@ -31,7 +31,8 @@ The p-value threshold for D-max is per default set to 0.01. In our benchmarking 
 Flag -k: dbSNP database (dbSNPs_sorted.txt.gz)
 =============================================== 
 To identify TFs which are more often affected than expected by chance in the given input SNP set, SNEEP can perform a statistical assessment to compare the result against proper random controls. To do so, the pipeline randomly samples SNPs from the `dbSNP database <??>`_ and rerun the analysis on these SNPs. 
-In order to sample the SNPs in a fast and efficient manner, we provide a file (in our `Zenodo repository <??>`_ containing the SNPs of the dbSNP database.  The file is a slightly modified version of the `public available one` https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/`_ (file GCF_000001405.38). In detail, we 
+In order to sample the SNPs in a fast and efficient manner, we provide a file (in our `Zenodo repository <??>`_ containing the SNPs of the dbSNP database.  The file is a slightly modified version of the `public available one <ttps://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/>`_ (file GCF_000001405.38). In detail, we 
+
 -	removed all SNPs overlapping with a protein-coding region (annotation of the `human genome (GRCh38), version 36 (Ensembl 102) https://www.gencodegenes.org/human/release_36.html`_),
 -	removed all information not important for SNEEP,
 -	removed mutations longer than 1 bp,
