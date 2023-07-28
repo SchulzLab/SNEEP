@@ -1,5 +1,5 @@
 =====================
-Detailed examples
+Examples how to run SNEEP
 =====================
 
 In this section we provide more details how to use our SNEEP pipeline for different applications. 
