@@ -11,7 +11,7 @@ TODO: add figure
 Installation 
 ==============
 
-via Bioconda package
+Bioconda package
 -----------------
 **Note** Our conda package is currently under maintance. Please install our software via the manual installation (see below). 
 
@@ -47,7 +47,7 @@ We tested the code and the Makefile only on a linux machine.
 Testing your installation 
 ==========================
 
-We provide a test script to verify if your installation worked. To download the test data and scripts, please clone the latest version of our GitHub repository
+We provide a test script to verify if your installation worked.  To download the test data and scripts, please clone the latest version of our GitHub repository (if not already done) 
 
 .. code-block:: console
 
@@ -57,7 +57,8 @@ download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and u
 
 Additional a reference genome in fasta format is requiered. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
 
-.. example::
+.. code-block:: console
+
   >chr1
   ATCGGGTCA…
   >chr2
@@ -111,6 +112,7 @@ The required bed-like SNP file is a tab-separated file containing the following 
 
 An example of a properly formated SNP files can be found below: 
 
+.. code-block:: console
 
   chr1    109274569       109274570       G       A       rs7528419       0.2009
   chr1    109275907       109275908       C       T       rs646776        0.2384
@@ -121,6 +123,7 @@ An example of a properly formated SNP files can be found below:
 
 If you want to consider a SNP, which has multiple alternative alleles like for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
 
+.. code-block:: console
 
   chr1    55030365        55030366        A       T       rs11206510      0.1018
   chr1    55030365        55030366        C       T       rs11206510      0.1018
@@ -131,7 +134,8 @@ SNEEP can only handle mutations effecting a single base pair (no deletions or in
 
 In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
 
-.. example::
+.. code-block:: console
+
   >chr1
   ATCGGGTCA…
   >chr2
