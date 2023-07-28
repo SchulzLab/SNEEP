@@ -6,7 +6,8 @@ SNEEP is fast method to identify regulatory non-coding SNPs (rSNPs) that modify 
 
 A graphical summary of SNEEP is shown below:
 
-TODO: add figure
+.. image:: ../sneep_overview.png
+  :alt: sneepOverview
 
 Installation 
 ==============
