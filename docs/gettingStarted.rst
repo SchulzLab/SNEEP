@@ -10,10 +10,20 @@ TODO: add figure
 
 Installation 
 ==============
+
+via Bioconda package
+-----------------
+**Note** Our conda package is currently under maintance. Please install our software via the manual installation (see below). 
+
 We provide a bioconda package to install the main functionality of our approach. Therefore an installation of  Bioconda `here <https://bioconda.github.io/>`_ is requiered. 
 
-TODO: add command
+.. code-block:: console
 
+  conda install sneep
+
+
+Manual installation
+--------------------
 If you want to directly install SNEEP, please clone our `GitHub repository <https://github.com/SchulzLab/SNEEP/>`_ and make sure that the following software is available on your machine: 
 
 - c++11 
