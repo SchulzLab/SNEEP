@@ -49,13 +49,13 @@ Examples of realistic applications
 
 For a realistic example we consider SNPs associated to myocardial infarction (downloaded from the `GWAS catalog <https://www.ebi.ac.uk/gwas/efotraits/EFO_0000612>`_ and the corresponding proxy SNPs (determined with `SNiPA <https://snipa.helmholtz-muenchen.de/snipa3/index.php?task=proxy_search>`_, R2 value >= 0.8). The following section provides example runs with different combination of the optional input parameters. The example data is located in the directory SNEEP/example/. The default parameters (SNP-file, motif file and human genome file) are the once we already used in the minimal example. Make sure you are located in the SNEEP main folder (SNEEP/).
 
-Notice, that the optional parameters can be combined in many more ways than presented in the following examples. We recommand to always set the -c flag to provide for each TF a specific scale parameter (see XX).
+Notice, that the optional parameters can be combined in many more ways then presented in the following examples. We recommend to always set the -c flag to provide for each TF a specific scale parameter (see XX).
 
 Example 1: Consider only TFs expressed in the cell type or tissue of interest
 ------------------------------------------------------------------------------
 
-To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardiomyocytes. Additionally, we provide the file containing the mapping between ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file. As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value which is most suitable for you.
-Additional, we specify the file holding the scale value per TF (-s), a p-value threshold of D_{max} as 0.001 (-c), the number of threads to use as 10 (-n) and two files to refinefor the binding affinity p-value computation (-b and -x).
+To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardiomyocytes. Additionally, we provide the file containing the mapping between Ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file. As flag d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value, which is most suitable for you (also depending on the normalization that you did for the gene expression data).
+Additionally, we specify the file holding the scale value per TF (-s), a p-value threshold of D_{max} as 0.001 (-c), the number of threads to use as 10 (-n) and two files to refine for the binding affinity p-value computation (-b and -x).
 
 So, the resulting command is: 
 
@@ -65,7 +65,7 @@ So, the resulting command is:
  
 Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
 
-Example 2: Consider only SNPs in open chromatin of the cell type ir tissue of interest
+Example 2: Consider only SNPs in open chromatin of the cell type for cell type of interest
 ---------------------------------------------------------------------------------------
 
 If open chromatin data of your cell type of interest is available, it is possible to integrate this data and automatically exclude SNPs from the analysis in closed, most likely inactive chromatin regions. 
@@ -91,16 +91,16 @@ The resulting SNEEP call is
 Example 3: Associate regulatory SNPs to their target genes
 ------------------------------------------------------------------------------------------------------------
 
-To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see XX). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
+To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see XX). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the Ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
  
 .. code-block:: console
 
   differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/   -r <pathToInteractions> -g ensemblID_GeneName.txt -c 0.001 -n 10 necessaryInputFiles/estimatedScalesPerMotif_1.9.txt -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed ${genome}
 
-Example 4: Compute a proper random background control and highlight the cell type specific TFs
+Example 4: Compute a proper random background control and highlight cell type specific TFs
 ---------------------------------------------------------------------------------------------
 
-To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning set -j to 100. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt) which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seed for runs with different input SNPs. The flag -q is used to speed up the background sampling by exclude TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
+To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning set -j to 100. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt) which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seeds for runs with different input SNPs. The flag -q is used to speed up the background sampling by excluding TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
 Further we recommend running SNEEP in the parallel mode by specifying the number of threads via the -n flag. 
 
 A possible SNEEP run with background sampling can look as following: 
