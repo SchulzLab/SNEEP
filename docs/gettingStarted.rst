@@ -16,7 +16,7 @@ Bioconda package
 -----------------
 **Note** Our conda package is currently under maintance. Please install our software via the manual installation (see below). 
 
-We provide a bioconda package to install the main functionality of our approach. Therefore an installation of  Bioconda `here <https://bioconda.github.io/>`_ is requiered. 
+We provide a bioconda package to install the main functionality of our approach. Therefore an installation of  Bioconda `here <https://bioconda.github.io/>`_ is required. 
 
 .. code-block:: console
 
@@ -56,7 +56,7 @@ We provide a test script to verify if your installation worked.  To download the
 
 download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and unzip the files. 
 
-Additional a reference genome in fasta format is requiered. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
+Additionally a reference genome in fasta format is required. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
 
 .. code-block:: console
 
@@ -73,7 +73,7 @@ To run our tests, please redirect into the SNEEP folder downloaded from GitHub a
 
   bash runTests.sh <pathToGenome> <pathTodbSNP>  <pathToInteractions>
 
-where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo repository and  <pathToInteractions> needs to be the path to one of interactiosn file e.g. interactionsREM_PRO_HiC.txt
+where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo repository and  <pathToInteractions> needs to be the path to one of interactions file e.g. interactionsREM_PRO_HiC.txt
 
 Basic usage
 ============
@@ -96,7 +96,7 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section XX. The run takes about XX to XX minutes. 
 
 
-Detailed description of the requiered input files
+Detailed description of the required input files
 ----------------------------------------------------
 
 We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory TODO: provide path.  
@@ -111,7 +111,7 @@ The required bed-like SNP file is a tab-separated file containing the following 
 -	rsID if known, otherwise - ,
 -	minor allele frequency (MAF) if known, otherwise -1. The minor allele frequency is important to provide if you want to assess the result of SNEEP against random controls. Then, SNEEP samples SNPs based on the MAF distribution of the input SNPs. 
 
-An example of a properly formated SNP files can be found below: 
+An example of a properly formated SNP file can be found below: 
 
 .. code-block:: console
 
@@ -122,7 +122,7 @@ An example of a properly formated SNP files can be found below:
   chr12   111569951       111569952       G       C       rs653178        -1
 
 
-If you want to consider a SNP, which has multiple alternative alleles like for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
+If you want to consider a SNP, which has multiple alternative alleles, like for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
 
 .. code-block:: console
 
@@ -131,7 +131,7 @@ If you want to consider a SNP, which has multiple alternative alleles like for i
   chr1    55030365        55030366        G       T       rs11206510      0.1018
 
 
-SNEEP can only handle mutations effecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Also duplicated entries are only considered once.
+SNEEP can only handle mutations affecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Also duplicated entries are only considered once.
 
 In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
 
