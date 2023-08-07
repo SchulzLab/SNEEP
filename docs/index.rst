@@ -12,5 +12,5 @@ SNEEP: SNP exploration and functional analysis using epigenetic data
 	gettingStarted.rst
 	examples.rst
 	detailsInput.rst
-	resultFiles.rst
+	results.rst
 	references.rst
