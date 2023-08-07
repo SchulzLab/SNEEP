@@ -2,7 +2,7 @@
 SNEEP: SNP exploration and functional analysis using epigenetic data
 =======================================================================
 
-.. image:: ../sneep_logo.png
+.. image:: ../../sneep_logo.png
   :alt: logoSneep
 
 
