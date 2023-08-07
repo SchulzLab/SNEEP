@@ -15,5 +15,4 @@ SNEEP: SNP exploration and functional analysis using epigenetic data
 	results.rst
 	references.rst
 
-
-AHHHH
+SNEEP has its documentation hosted on Read the Docs.
