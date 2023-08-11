@@ -1,9 +1,6 @@
 #include "sampleRandomRsIDs2.hpp"
 #include <stdio.h>
 #include <algorithm>
-//own classes
-#include "callBashCommand.hpp"
-
 
 string getToken(string& line, char delim){
 	int pos = 0;
@@ -34,8 +31,6 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 	}
 	return;
 }
-
-
 int main(){
 
 	BashCommand bc("/home/nbaumgarten/hg38.fa");
@@ -51,7 +46,7 @@ int main(){
 	cout << "after constructor" << endl;
 	unordered_map<double,int> MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
 	cout << "after maf_counter" << endl;
-	s.determineRandomSNPs(MAF_counter, "testDir", 100, 20, ".", 1);
+	s.determineRandomSNPs(MAF_counter, "testDir", 100, 20,  1);
 
 
 

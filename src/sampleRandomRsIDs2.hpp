@@ -19,7 +19,7 @@
 //own classes
 #include "callBashCommand.hpp"
 
-int MAXIMAL_ROUNDS = 1000;
+int MAXIMAL_ROUNDS = 1500;
 
 using namespace std;
 
@@ -36,7 +36,8 @@ class rsIDsampler{
 
 	unordered_map<double, int> splitMAFinBins();
 	string getToken(string& line, char delim);
-	vector<string> determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, string sourceDir, int seed);
+	//vector<string> determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, string sourceDir, int seed);
+	vector<string> determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, int seed);
 	void sampleSNPs(int counter, string outputFile, vector<string>& SNPs, int seed, int size, string histogramFile);
 //	void determineRandomSamples(unordered_map<double,int>& MAF_counter, string outputFile, unordered_map<double, vector<string>>& dbSNPs, int seed, string histogram, vector<double>& keys);
 //	unordered_map<double, vector<string>> storeDbSNPs();
@@ -75,7 +76,8 @@ rsIDsampler::~rsIDsampler()
 /*
 // reads SNPs bin per bin from the dbSNP file and determines random SNPs for the given rounds per bin
 */
-vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, string sourceDir, int seed){
+//vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, string sourceDir, int seed){
+vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, int seed){
 
 	double bin = -1.0, currentMAF = 0.0; 
 	int counter = 0,  size = 0; //alternative 53330
@@ -90,11 +92,11 @@ vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_c
 	for(int r = 0; r < rounds; ++r){
 		num = to_string(r);
 		SNP_files[r] = outputDir + "/randomSNPs_" + num + ".txt";
-		histogram_files[r] = outputDir + "/histogram_" + num + ".txt";
+		//histogram_files[r] = outputDir + "/histogram_" + num + ".txt";
 		//write header of the histogram file
-		h.open(histogram_files[r]);
-		h << "SNP\tMAF\n"; 
-		h.close();
+		//h.open(histogram_files[r]);
+		//h << "SNP\tMAF\n"; 
+		//h.close();
 	}
 	
 	ifstream inputFile(dbSNPFile); //open dbSNPFile
@@ -110,6 +112,7 @@ vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_c
 				size = currentSNPs.size();
 				//cout << "bin " << bin << endl;
 				for(int r = 0; r < rounds; ++r){
+					//cout << r << endl;
 					sampleSNPs(counter, SNP_files[r] , currentSNPs, seed + r, size, histogram_files[r]);
 				}
 			}	
@@ -177,9 +180,9 @@ void rsIDsampler::sampleSNPs(int counter, string outputFile, vector<string>& SNP
 	output << currentSNPs;
 	output.close();
 	ofstream h; 
-	h.open(histogramFile, std::ofstream::app);
-	h <<  helper; 
-	h.close();
+//	h.open(histogramFile, std::ofstream::app);
+//	h <<  helper; 
+//	h.close();
 }
 
 /*
