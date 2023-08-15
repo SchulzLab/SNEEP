@@ -14,7 +14,6 @@ Installation
 
 Bioconda package
 -----------------
-**Note** Our conda package is currently under maintance. Please install our software via the manual installation (see below). 
 
 We provide a bioconda package to install the main functionality of our approach. Therefore an installation of  Bioconda `here <https://bioconda.github.io/>`_ is required. 
 
