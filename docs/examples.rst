@@ -49,7 +49,7 @@ Examples of realistic applications
 
 For a realistic example we consider SNPs associated to myocardial infarction (downloaded from the `GWAS catalog <https://www.ebi.ac.uk/gwas/efotraits/EFO_0000612>`_ and the corresponding proxy SNPs (determined with `SNiPA <https://snipa.helmholtz-muenchen.de/snipa3/index.php?task=proxy_search>`_, R2 value >= 0.8). The following section provides example runs with different combination of the optional input parameters. The example data is located in the directory SNEEP/example/. The default parameters (SNP-file, motif file and human genome file) are the once we already used in the minimal example. Make sure you are located in the SNEEP main folder (SNEEP/).
 
-Notice, that the optional parameters can be combined in many more ways then presented in the following examples. We recommend to always set the -c flag to provide for each TF a specific scale parameter (see XX).
+Notice, that the optional parameters can be combined in many more ways then presented in the following examples. We recommend to always set the -s flag to provide for each TF a specific scale parameter (see `Optional parameters <https://sneep.readthedocs.io/en/latest/detailsInput.html>`_). Otherwise a default value baesd on the length of the TF motif is used, which is less accurate.
 
 Example 1: Consider only TFs expressed in the cell type or tissue of interest
 ------------------------------------------------------------------------------
