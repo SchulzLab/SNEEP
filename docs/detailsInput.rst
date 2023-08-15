@@ -1,6 +1,6 @@
 
 =======================================
-Details about the optional parameters
+Optional parameters
 =======================================
 
 In the following we outline all optinal parameters which can be used to run SNEEP in more detail. 
