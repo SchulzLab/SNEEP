@@ -98,7 +98,7 @@ Per default the result is stored in the directory ‘SNEEP_output’. The file �
 Detailed description of the required input files
 ----------------------------------------------------
 
-We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory TODO: provide path.  
+We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory. Additional, we provide the mouse motifs from the JASPAR database (version 2022) and the HOCOMOCO database. In general our approach can be used for any species.
 
 The required bed-like SNP file is a tab-separated file containing the following entries: 
 
