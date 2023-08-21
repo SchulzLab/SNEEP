@@ -91,7 +91,7 @@ The resulting SNEEP call is
 Example 3: Associate regulatory SNPs to their target genes
 ------------------------------------------------------------------------------------------------------------
 
-To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see XX). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the Ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
+To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see <https://sneep.readthedocs.io/en/latest/detailsInput.html#flag-r-and-g-epigenetic-interactions>). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the Ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
  
 .. code-block:: console
 
