@@ -91,7 +91,7 @@ The resulting SNEEP call is
 Example 3: Associate regulatory SNPs to their target genes
 ------------------------------------------------------------------------------------------------------------
 
-To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation see <https://sneep.readthedocs.io/en/latest/detailsInput.html#flag-r-and-g-epigenetic-interactions>). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the Ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
+To associate the target genes, we need to specify a file that holds enhancer-gene interactions (flag -r). We provide this data via a Zenodo repository, which contains three different epigenetic interaction files (for more detail explanation click `here <https://sneep.readthedocs.io/en/latest/detailsInput.html#flag-r-and-g-epigenetic-interactions>`_ ). For our example the most suitable one is the file interactionsREM_PRO_HiC.txt. The HiC data is retrieved from whole human heart, so we can benefit from the interactions for our example analysis. Please specify the path to this file in the following command. Additionally, the file ensemblID_GeneName.txt containing the Ensembl ID to gene name mapping for all genes listed in the epigenetic interaction file is required (flag -g).
  
 .. code-block:: console
 
@@ -107,4 +107,4 @@ A possible SNEEP run with background sampling can look as following:
 
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -c 0.001 -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt  -n 20 -j 100 -k <pathTodbSNP> -l 2 -q 0 -r <pathToInteractions> -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed ${geno    me}
+  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -c 0.001 -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt  -n 20 -j 100 -k <pathTodbSNP> -l 2 -q 0 -r <pathToInteractions> -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed ${genome}
