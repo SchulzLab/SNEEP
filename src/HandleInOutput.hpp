@@ -27,7 +27,7 @@ class InOutput{
 	void parseInputPara(int argc, char *argv[]);
 	friend ostream& operator<< (ostream& os, InOutput& io);
 	ofstream openFile(string path, bool app);
-	int parseSNPsBedfile(string inputFile, int number);
+	void parseSNPsBedfile(string inputFile, int number);
 	string getToken(string& line, char delim);
 	void callHelp();
 	int CountEntriesFirstLine(string inputFile, char delim);
@@ -35,6 +35,7 @@ class InOutput{
 	void parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed);
 	void readScaleValues(string scaleFile, unordered_map<string, double>& scales);
 	void getInfoSNPs(vector<string>& leadSNPs, unordered_map<string, vector<string>>& proxySNPs);
+	int getNumberSNPs(string inputFile);
 
 	//getter
 	double getPvalue();
@@ -323,8 +324,24 @@ ofstream InOutput::openFile(string path, bool app){
         return output;
 }
 
+//gets the number of SNPs in the fastaa file 
+// necessary to count them here, since we can lose snps which are out of the region of a chromosome if the genome version does not map to the dbSNP version
+
+int InOutput::getNumberSNPs(string inputFile){
+
+
+	ifstream input(inputFile); //either overlappingPeak file or snpFile
+	int counter = 0;
+	string line = "";
+	while (getline(input, line, '\n')){
+		counter++;
+	}
+	return counter/2;
+}
+
+
 //TODO:kommentieren
-int InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
+void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 
 	double counterOverlappingREMs = 0;
 	double counterOverlappingPeaks = 0;
@@ -465,7 +482,7 @@ int InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	}else{
 		info_ << "!\toverlapPeak: -\n"; //info file
 	}
-	consideredSNPs = counterOverlappingPeaks;
+//	consideredSNPs = counterOverlappingPeaks;
 //	cout << "peaks considered: " << consideredSNPs << endl;
 
 	if (getREMs() != ""){
@@ -477,7 +494,7 @@ int InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	input.close();
 	output.close();
 	output2.close();
-	return consideredSNPs;
+	return;
 }
 
 string InOutput::getToken(string& line, char delim){

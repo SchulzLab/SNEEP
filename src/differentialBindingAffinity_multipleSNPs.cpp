@@ -70,6 +70,8 @@ double cdf_laplace_abs_max(double scale, double numberKmers, double value);
 
 int main(int argc, char *argv[]){
 
+	cout << "HELLO" << endl;
+
 	
 	//to output doubles whith a total of 17 digits
 	typedef numeric_limits< double > dbl;
@@ -129,16 +131,18 @@ int main(int argc, char *argv[]){
 		//determine intersection
 		bc.intersect(SNPFile,footprintFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 		//parse bedfile 
-		numberSNPs = io.parseSNPsBedfile(output, entriesSNPFile); //skip insertions that are longer than 1 and remember additionl number of entries per line (the first 5 entries are not counted, since they are necessary), result sored in OutputDir + snpRegions.bed, use getSNPBedFile() 
+		io.parseSNPsBedfile(output, entriesSNPFile); //skip insertions that are longer than 1 and remember additionl number of entries per line (the first 5 entries are not counted, since they are necessary), result sored in OutputDir + snpRegions.bed, use getSNPBedFile() 
 
 	}else{
 		//parse bedfile 
-		numberSNPs = io.parseSNPsBedfile(SNPFile, entriesSNPFile);
+		io.parseSNPsBedfile(SNPFile, entriesSNPFile);
 	}
-	cout << "number SNPs: " << numberSNPs <<endl;
 	//call getFasta
 	bc.getFasta(io.getSNPBedFile(), io.getSNPfastaFile(), "-name");
-	//cout << "after getFastaa" << endl;
+
+	// determine number of SNPs from fastaa file
+	numberSNPs = io.getNumberSNPs(io.getSNPfastaFile());
+	cout << "number SNPs: " << numberSNPs <<endl;
 
 	//check which TFs are active and write this TFs seperated in files  (done with a python script) also determine frequence matrix from the count matrices
 	string activeTFs = io.getActiveTFs();
@@ -169,7 +173,7 @@ int main(int argc, char *argv[]){
 	//determine pvalues for PFMs 
 	string motif = "";
 	Matrix<double> transition_matrix(4,4,0.25); // default to definde transition matrix with 0.25 
-	cout << transition_matrix << endl;
+	//cout << transition_matrix << endl;
 	// if transition matrix is specified use this file otherwise assume all transitions are equally likely
 	if (io.getTransitionMatrix() != ""){
 		ifstream transition_file(io.getTransitionMatrix());
