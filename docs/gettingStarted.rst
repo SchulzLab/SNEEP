@@ -15,7 +15,7 @@ Installation
 Bioconda package
 -----------------
 
-We provide a bioconda package to install the main functionality of our approach. Therefore an installation of  Bioconda `here <https://bioconda.github.io/>`_ is required. 
+We provide a bioconda package to install the main functionality of our approach. Therefore an installation of `Bioconda <https://bioconda.github.io/>`_ is required. 
 
 .. code-block:: console
 
