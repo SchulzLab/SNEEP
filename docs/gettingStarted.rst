@@ -51,7 +51,7 @@ We provide a test script to verify if your installation worked.  To download the
 
 .. code-block:: console
 
-  clone git@github.com:SchulzLab/SNEEP.git
+  git clone git@github.com:SchulzLab/SNEEP.git
 
 download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and unzip the files. 
 
