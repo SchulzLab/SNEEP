@@ -90,10 +90,9 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
+differentialBindingAffinity_multipleSNPs  -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
 
-Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_   . The run takes about 3 minutes using one core. 
-
+Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_. The run takes a couple of minutes using one core. 
 
 Detailed description of the required input files
 ----------------------------------------------------
@@ -141,10 +140,4 @@ In the reference genome file, the different chromosome must be named as chr1, ch
   >chr2
   TTTGAGACCAT…
 
-For the provided examples in the following, please use genome version hg38.
-
-
-
-
-
-
+For the provided examples in the following, please use genome version hg38. An already correctly formated file can for instance be downloaded from `here <https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/>`_ filename *hg38.fa.gz*.
