@@ -21,7 +21,7 @@ which results in
   optinal parameters:
   -o outputDir (default SNEEP_output/, if you want to specific it, it must be done as first argument)
   -n number threads (default 1)
-  -p pvalue for motif hits (default 0.05)
+  -p pvalue for motif hits (default 0.5)
   -c pvalue differential binding (default 0.01)
   -b base frequency for PFMs -> PWMs (/necessaryInputFiles/frequency.txt)
   -a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt
