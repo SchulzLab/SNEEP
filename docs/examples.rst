@@ -54,13 +54,13 @@ Example 1: Consider only TFs expressed in the cell type or tissue of interest
 ------------------------------------------------------------------------------
 
 To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardiomyocytes. Additionally, we provide the file containing the mapping between Ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file (flag -e). As flag -d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value, which is most suitable for you (also depending on the normalization that you did for the gene expression data).
-Additionally, we specify a p-value threshold of D\ :sub:`max` as 0.001 (-c), the number of threads to use as 10 (-n) and two files to refine for the binding affinity p-value computation (-b and -x).
+Additionally, we specify a p-value threshold for the TF binding score (-p), a p-value threshold D\ :sub:`max` as 0.001 (-c), the number of threads to use as 10 (-n) and two files to refine for the binding affinity p-value computation (-b and -x).
 
 So, the resulting command is: 
 
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/TF_ensemblID_name_human_JASPAR2022_GRCh38p13.txt -d 0.5 -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt -c 0.001 -n 10 examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <pathToGenome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt
+  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_expression/ -t examples/RNA-seq_humanLV_hiPSC-CM.txt -e examples/TF_ensemblID_name_human_JASPAR2022_GRCh38p13.txt -d 0.5 -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt  -p 0.5 -c 0.001 -n 10 examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <pathToGenome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt
  
 Note, that we specified the output directory with the -o flag as examples/SNEEP_output_expression/. 
 
@@ -78,13 +78,13 @@ To download the data run:
 
   wget 'https://www.encodeproject.org/files/ENCFF199VHV/@@download/ENCFF199VHV.bed.gz'
 
-Next unzip the file via gunzip.
+Next unzip the file via gzip.
 
 The resulting SNEEP call is 
 
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/  -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt -f ENCFF199VHV.bed  -c 0.001 -n 10  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed <pathToGenome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt
+  differentialBindingAffinity_multipleSNPs  -o examples/SNEEP_output_open_chromatin/  -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt -f ENCFF199VHV.bed  -p 0.5 -c 0.001 -n 10  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed <pathToGenome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt
   
 Example 3: Associate regulatory SNPs to their target genes
 ------------------------------------------------------------------------------------------------------------
@@ -93,16 +93,16 @@ To associate the target genes, we need to specify a file that holds enhancer-gen
  
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/   -r <pathToInteractions> -g ensemblID_GeneName.txt -c 0.001 -n 10 -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path_to_genome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt 
+  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_REM_PRO_HiC/   -r <pathToInteractions> -g examples/ensemblID_GeneName.txt  -p 0.5 -c 0.001 -n 10 -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path_to_genome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt 
 
 Example 4: Compute a proper random background control and highlight cell type specific TFs
 ---------------------------------------------------------------------------------------------
 
-To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning set -j to 100. However, in our applications we usually set -j 1.0000. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt, more onformation are found in `this <https://sneep.readthedocs.io/en/latest/detailsInput.html#flag-k-dbsnp-database-dbsnps-sorted-txt-gz>`_section) which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seeds for runs with different input SNPs. The flag -q is used to speed up the background sampling by excluding TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
+To perform a random background sampling the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning set -j to 100. However, in our applications we usually set -j to 500 or 1.000. The random SNPs are sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt, more onformation are found in Section *Optional parameters*) which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seeds for runs with different input SNPs. The flag -q is used to speed up the background sampling by excluding TFs, which did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning only TFs with at least 1 significant change in the binding affinity are considered in the background sampling. 
 Further we recommend running SNEEP in the parallel mode by specifying the number of threads via the -n flag. 
 
 A possible SNEEP run with background sampling can look as following: 
 
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -c 0.001 -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt  -n 20 -j 100 -k <pathTodbSNP> -l 2 -q 0 -r <pathToInteractions> -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path_to_genome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt 
+  differentialBindingAffinity_multipleSNPs -o examples/SNEEP_output_background_sampling/ -p 0.5 -c 0.001 -b necessaryInputFiles/frequency.txt -x necessaryInputFiles/transition_matrix.txt  -n 20 -j 100 -k <pathTodbSNP> -l 2 -q 0 -r <pathToInteractions> -g ensemblID_GeneName.txt  examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt  examples/SNPs_EFO_0000612_myocardial_infarction.bed <path_to_genome> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt 
