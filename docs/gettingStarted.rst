@@ -90,7 +90,7 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 
 .. code-block:: console
 
-differentialBindingAffinity_multipleSNPs  -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
+  differentialBindingAffinity_multipleSNPs  -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
 
 Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_. The run takes a couple of minutes using one core. 
 
