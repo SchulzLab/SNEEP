@@ -54,7 +54,7 @@ Example 1: Consider only TFs expressed in the cell type or tissue of interest
 ------------------------------------------------------------------------------
 
 To do so, we need to set the optional parameters -t, -d and -e. For our example the file containing the expression values (flag -t) are provided in the example directory and derived from cardiomyocytes. Additionally, we provide the file containing the mapping between Ensembl ID (used in the expression value file) and the names of the TFs specified in the motif file (flag -e). As flag -d, we use a rather less stringent expression value threshold of 0.5. In general, you can choose any value, which is most suitable for you (also depending on the normalization that you did for the gene expression data).
-Additionally, we specify a p-value threshold of D\ :sup:`max` as 0.001 (-c), the number of threads to use as 10 (-n) and two files to refine for the binding affinity p-value computation (-b and -x).
+Additionally, we specify a p-value threshold of D\ :sub:`max` as 0.001 (-c), the number of threads to use as 10 (-n) and two files to refine for the binding affinity p-value computation (-b and -x).
 
 So, the resulting command is: 
 
