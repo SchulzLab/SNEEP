@@ -77,11 +77,12 @@ where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo 
 Basic usage
 ============
 
-The following 3 files are required as minimal input to run SNEEP:
+The following 4 files are required as minimal input to run SNEEP:
 
 1)	a file containing the TF motifs in TRANSFAC format, 
 2)	a bed-like SNP file,
 3)	a reference genome file in fasta format.
+4) a scale file providing motif-specific scale parameters to compute the significance of the effect of the SNP on the TF (provided)
 
 Minimal example
 ---------------
@@ -90,7 +91,7 @@ To try SNEEP with the minimal required input, make sure you are in the SNEEP fol
 
 .. code-block:: console
 
-  differentialBindingAffinity_multipleSNPs  -s necessaryInputFiles/estimatedScalesPerMotif_1.9.txt examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> 
+  differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt 
 
 Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_. The run takes a couple of minutes using one core. 
 
@@ -141,3 +142,5 @@ In the reference genome file, the different chromosome must be named as chr1, ch
   TTTGAGACCAT…
 
 For the provided examples in the following, please use genome version hg38. An already correctly formated file can for instance be downloaded from `here <https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/>`_ filename *hg38.fa.gz*.
+
+For human TF motifs we provide a file holding motif-specific scale parameters. This information is necessary to determine if a TF binding site is significantly affected by a SNP. Our modified Laplace distribution is dependent on two parameters: n, which is two times the length of the TF model and the scale parapmeter b, which needs to be estimated. For the TF set we provide within our GitHub repository, we also estimated the scale parameter b listed in necessaryInputFiles/estimatedScalesPerMotif_1.9.txt. In case a customized TF motif set is used for instance for different species than human, the scale parameters b needs to estimate. Therefore we provide a script XXX (TODO: provide more details here).
