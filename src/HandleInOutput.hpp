@@ -134,7 +134,7 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:g:j:k:l:q:uvhx:")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:af:mt:r:e:d:g:j:k:l:q:uvhx:")) != -1) {
 	//while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:i:g:j:k:l:q:uvh")) != -1) {
        		switch (opt) {
 		case 'o':
@@ -157,10 +157,10 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			frequence = optarg;
 			cout << "-b frequency: " << frequence << endl;
 			break;
-		case 's':
-			scaleFile = optarg;
-			cout << "-s scaleFile: " << scaleFile << endl;
-			break;
+		//case 's':
+		//	scaleFile = optarg;
+		//	cout << "-s scaleFile: " << scaleFile << endl;
+		//	break;
 		case 'a':
 			allOutput = outputDir + "AllDiffBindAffinity.txt";
 			cout << "-a AllDiffBindAff: " << allOutput << endl;
@@ -250,8 +250,8 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	if (samplingRounds > 0){
 		backgroundSeq = outputDir + "backgroundSequences.bed";
 	}
-	if (optind + 3 > argc)  // there should be 3 more non-option arguments
-		throw invalid_argument("missing motif file in TRANSFAC format, bed-like SNP file and/or genome file \n for help use  -h"); // TODO: besser in motif file umwandeln
+	if (optind + 4 > argc)  // there should be 4 more non-option arguments
+		throw invalid_argument("missing motif file in TRANSFAC format, bed-like SNP file, genome file and/or scaleFile \n for help use  -h"); // TODO: besser in motif file umwandeln
 	if (samplingRounds > 0 and dbSNPs.length() == 0){
 		throw invalid_argument("for a background analysis the path to the sorted dbSNP file is requiered\n for help use -h"); // both parameters need to be set
 	}
@@ -270,8 +270,9 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	cout <<"SNP file: " << snpsNotUnique << endl;
 	genome = argv[optind++];
 	cout << "genome file: " << genome << endl;
+	scaleFile = argv[optind++];
+	cout << "scale file: " << scaleFile << endl;
 }
-
 
 ostream& operator<< (ostream& os, InOutput& io){
 
@@ -285,7 +286,7 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-c p-value threshold diffBindAff: " << io.pvalue_diff << 
 	"\n#\t-b file of background freq: " << io.frequence << 
 	"\n#\t-f footprint/region file: " << io.footprint << 
-	"\n#\t-s scaleFile: " << io.scaleFile << 
+//	"\n#\t-s scaleFile: " << io.scaleFile << 
 	"\n#\t-m maxOutput: " << 
 	"\n#\t-t activeTFs: " << io.activeTFs << 
 	"\n#\t-r REMs: " << io.REMs <<
@@ -304,6 +305,7 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\tPFMs: " << io.PFMs << 
 	"\n#\tSNPs file: " << io.snpsNotUnique << 
 	"\n#\tpath to genome: " << io.genome <<
+	"\n#\tpath to scale file: " << io.scaleFile <<
 	"\n#\tinfo file: " << io.info;
 	return os;
 }
@@ -517,7 +519,7 @@ void InOutput::callHelp(){
 	"-p pvalue for motif hits (default 0.05)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
 	"-b base frequency for PFMs -> PWMs ( /necessaryInputFiles/frequency.txt)\n" <<
-	"-s file where the computed scales per motif are stored ( necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<
+	//"-s file where the computed scales per motif are stored ( necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<
 	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
 	"-f additional footprint/open chromatin region file in bed file format\n" <<
 	"-m if flag is set, the  maximal differential binding affinity per SNP is printed\n"<<
@@ -535,7 +537,7 @@ void InOutput::callHelp(){
 	"-v perform TF enrichment  analysis (default  false), -j must be set\n" <<	
 	"-x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)" <<
 	"-h help\n" <<
-	"transfac PFM file,  bed-like SNP file and path to genome file (fasta format)  must be given"<<endl;
+	"transfac PFM file,  bed-like SNP file, path to genome file (fasta format) and scale file (see necessaryInputFiles/estimatedScalesPerMotif_1.9.txt for human data)  must be given"<<endl;
 }
 
 int InOutput::CountEntriesFirstLine(string inputFile, char delim){
