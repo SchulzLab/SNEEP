@@ -15,7 +15,7 @@ Installation
 Bioconda package
 -----------------
 
-We provide a bioconda package to install the main functionality of our approach. Therefore an installation of `Bioconda <https://bioconda.github.io/>`_ is required. 
+We provide a bioconda package to install the main functionality of our approach. Therefore, an installation of `Bioconda <https://bioconda.github.io/>`_ is needed. 
 
 .. code-block:: console
 
@@ -24,7 +24,7 @@ We provide a bioconda package to install the main functionality of our approach.
 
 Manual installation
 --------------------
-If you want to directly install SNEEP, please clone our `GitHub repository <https://github.com/SchulzLab/SNEEP/>`_ and make sure that the following software is available on your machine: 
+If you want to directly install SNEEP, please clone our `GitHub repository <https://github.com/SchulzLab/SNEEP/>`_ and ensure that the following software is available on your machine: 
 
 - c++11 
 - g++ (9.3.0)
@@ -32,7 +32,7 @@ If you want to directly install SNEEP, please clone our `GitHub repository <http
 - bedtools (v2.27.1)
 - openmp
 
-To build SNEEP, run the following commands: 
+To build SNEEP, the following commands are used: 
 
 .. code-block:: console
 
@@ -40,14 +40,14 @@ To build SNEEP, run the following commands:
   make
 
 
-Please add the path to our software (SNEEP/src) to our PATH environment (otherwise internally called scrips might not be found)
+Please add the path to our software (SNEEP/src) to our PATH environment (otherwise, internally called scrips might not be found).
 
-We tested the code and the Makefile only on a linux machine. 
+We tested the code and the Makefile only on a Linux machine. 
 
 Testing your installation 
 ==========================
 
-We provide a test script to verify if your installation worked.  To download the test data and scripts, please clone the latest version of our GitHub repository (if not already done) 
+We provide a test script to verify if your installation worked. To download the test data and scripts, please clone the latest version of our GitHub repository (if not already done) 
 
 .. code-block:: console
 
@@ -55,7 +55,7 @@ We provide a test script to verify if your installation worked.  To download the
 
 download our `Zenodo repository <https://doi.org/10.5281/zenodo.4892591>`_ and unzip the files. 
 
-Additionally a reference genome in fasta format is required. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
+Additionally, a reference genome in FASTA format is needed. The different chromosomes within the file must be named as chr1, chr2. An example is shown below:
 
 .. code-block:: console
 
@@ -72,7 +72,7 @@ To run our tests, please redirect into the SNEEP folder downloaded from GitHub a
 
   bash runTests.sh <pathToGenome> <pathTodbSNP>  <pathToInteractions>
 
-where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from Zenodo repository and  <pathToInteractions> needs to be the path to one of interactions file e.g. interactionsREM_PRO_HiC.txt
+where <pathTodbSNP> is the path to the dbSNPs_sorted.txt downloaded from our Zenodo repository and  <pathToInteractions> needs to be the path to one of the interaction file, e.g., interactionsREM_PRO_HiC.txt
 
 Basic usage
 ============
@@ -80,34 +80,34 @@ Basic usage
 The following 4 files are required as minimal input to run SNEEP:
 
 1)	a file containing the TF motifs in TRANSFAC format, 
-2)	a bed-like SNP file,
-3)	a reference genome file in fasta format.
-4) a scale file providing motif-specific scale parameters to compute the significance of the effect of the SNP on the TF (provided)
+2)	a bedlike SNP file,
+3)	a reference genome file in FASTA format,
+4) a scale file providing motif-specific scale parameters to compute the significance of the effect of the SNP on the TF (provided).
 
 Minimal example
 ---------------
 
-To try SNEEP with the minimal required input, make sure you are in the SNEEP folder and run: 
+To try SNEEP with the minimal required input, ensure that you are in the SNEEP folder and run: 
 
 .. code-block:: console
 
   differentialBindingAffinity_multipleSNPs examples/combined_Jaspar2022_Hocomoco_Kellis_human_transfac.txt examples/SNPs_EFO_0000612_myocardial_infarction.bed  <path-to-genome-file> necessaryInputFiles/estimatedScalesPerMotif_1.9.txt 
 
-Per default the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the result files, see Section `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_. The run takes a couple of minutes using one core. 
+Per default, the result is stored in the directory ‘SNEEP_output’. The file ‘result.txt’ in the SNEEP output directory contains the predicted rSNPs. For more details about the resulting files, see the Section `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_. The run takes a couple of minutes using one core. 
 
 Detailed description of the required input files
 ----------------------------------------------------
 
-We provide human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory. Additional, we provide the mouse motifs from the JASPAR database (version 2022) and the HOCOMOCO database. In general our approach can be used for any species.
+We obtained human TF motifs from the JASPAR database (version 2022), HOCOMOCO and  Kellis ENCODE database in the required format in the examples directory. Additionally, we provide the mouse motifs from the JASPAR database (version 2022) and the HOCOMOCO database. In general, our approach can be used for any species.
 
-The required bed-like SNP file is a tab-separated file containing the following entries: 
+The required bedlike SNP file is a tab-separated file containing the following entries: 
 
 -	chr,
 -	start position (0-based),
 -	end position (0-based),
--	var1 (e.g. effector allele or alternative allele) ,
--	var2 (e.g. wild type allele),
--	rsID if known, otherwise - ,
+-	var1 (e.g., effector allele or alternative allele) ,
+-	var2 (e.g., wildtype allele),
+-	rsID if known; otherwise - ,
 -	minor allele frequency (MAF) if known, otherwise -1. The minor allele frequency is important to provide if you want to assess the result of SNEEP against random controls. Then, SNEEP samples SNPs based on the MAF distribution of the input SNPs. 
 
 An example of a properly formated SNP file can be found below: 
@@ -121,7 +121,7 @@ An example of a properly formated SNP file can be found below:
   chr12   111569951       111569952       G       C       rs653178        -1
 
 
-If you want to consider a SNP, which has multiple alternative alleles, like for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele in the bed-like SNP file. An example is shown below: 
+If you want to consider a SNP, that has multiple alternative alleles, such as for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele to the bedlike SNP file. An example is shown below: 
 
 .. code-block:: console
 
@@ -130,9 +130,9 @@ If you want to consider a SNP, which has multiple alternative alleles, like for 
   chr1    55030365        55030366        G       T       rs11206510      0.1018
 
 
-SNEEP can only handle mutations affecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Also duplicated entries are only considered once.
+SNEEP can only handle mutations affecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Additionally, duplicated entries are only considered once.
 
-In the reference genome file, the different chromosome must be named as chr1, chr2 etc. resulting in the following format: 
+In the reference genome file, the different chromosomes must be named as chr1, chr2, etc., resulting in the following format: 
 
 .. code-block:: console
 
@@ -141,6 +141,6 @@ In the reference genome file, the different chromosome must be named as chr1, ch
   >chr2
   TTTGAGACCAT…
 
-For the provided examples in the following, please use genome version hg38. An already correctly formated file can for instance be downloaded from `here <https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/>`_ filename *hg38.fa.gz*.
+For the provided examples in the following, please use genome version hg38. An already correctly formated file can, for instance, be downloaded from `here <https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/>`_ filename *hg38.fa.gz*.
 
-For human TF motifs we provide a file holding motif-specific scale parameters. This information is necessary to determine if a TF binding site is significantly affected by a SNP. Our modified Laplace distribution is dependent on two parameters: n, which is two times the length of the TF model and the scale parapmeter b, which needs to be estimated. For the motif set we provide within our GitHub repository, we also estimated the scale parameter b listed in necessaryInputFiles/estimatedScalesPerMotif_1.9.txt. In case a customized TF motif set is used for instance for different species than human, the scale parameters b needs to estimate. Therefore we provide a script XXX (TODO: provide more details here).
+For human TF motifs, we provide a file containing motif-specific scale parameters. This information is necessary to determine whether a TF binding site is significantly affected by a SNP. Our modified Laplace distribution is dependent on two parameters, n, which is two times the length of the TF model, and the scale parameter b, which needs to be estimated. For the motif set we provide within our GitHub repository, we also estimated the scale parameter b listed in necessaryInputFiles/estimatedScalesPerMotif_1.9.txt. When a customized TF motif set is used, for instance, for a different species than humans, the scale parameter b needs to be estimated. Therefore, we provide a script XXX (TODO: provide more details here).
