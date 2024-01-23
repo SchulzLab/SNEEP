@@ -3,30 +3,30 @@
 Optional parameters
 =======================================
 
-In the following we outline all optional parameters which can be used to run SNEEP in more detail. 
+In the following, we outline all optional parameters that can be used to run SNEEP in more detail. 
 
 Flag -o: Specify an output folder
 ===================================
   
-As default the result of our pipeline is stored within the folder SNEEP_output/.  Using the flag -o a user-defined path for the output folder can be given. Notice that if you set this flag, it must be given as first argument. The (potential) content of the output folder is automatic overwritten whenn running SNEEP.
+As a default, the result of our pipeline is stored within the folder SNEEP_output/.  Using the flag -o, a user-defined path for the output folder can be given. Note that if you set this flag, it must be given as first argument. The (potential) content of the output folder is automatically overwritten when running SNEEP.
 
 Flag -n: Number of threads
 ==========================
   
-To speed up the p-value computation of the binding affinity and the random background analyses the parameter n can be specified. Default: -n 1. 
+To speed up the p-value computation of the binding affinity and the random background analyses, the parameter n can be specified. Default: -n 1. 
 
-Flag -p: p-value threshold for TF binding score
+Flag -p: p-value threshold for the TF binding score
 ===================================================
   
-This flag specifies the p-value threshold for the TF binding score. For a TF the binding score is computed for all possible shifts that overlap with the SNP. If a shift exceeds the p-value threshold, a absolute maximal differential TF binding score is computed. We recommend to use a moderate p-value threshold of 0.5. Default: -p 0.5.
+This flag specifies the p-value threshold for the TF binding score. For a TF, the binding score is computed for all possible shifts that overlap with the SNP. If a shift exceeded the p-value threshold, an absolute maximal differential TF binding score was computed. We recommend using a moderate p-value threshold of 0.5. Default: -p 0.5.
   
-Flag -b and flag -x: Base frequency for TF binding affinity computation
+Flag -b and flag -x: base frequency for TF binding score computation
 =========================================================================
-The approach to derive the p-value for the TF binding score allows to include the base frequency of the bases and the transition frequency between to bases of the considered sequences. We computed both frequencies for the human genome and provide them within our GitHub repository (necessaryInputFiles/frequency.txt and necessaryInputFile/transition_matrix.txt). If these frequencies are not specified, we assume as default 0.25.
+The approach to derive the p-value for the TF binding score allows us to include the base frequency of the bases and the transition frequency between to bases of the considered sequences. We computed both frequencies for the human genome and provided them within our GitHub repository (necessaryInputFiles/frequency.txt and necessaryInputFile/transition_matrix.txt). If these frequencies are not specified, we assume a default of 0.25.
 
-Flag -c: p-value threshold for absolute maximal differential TF binding score
+Flag -c: p-value threshold for the absolute maximal differential TF binding score
 ===============================================================================
-The p-value threshold for D\ :sub: `max` is per default set to 0.01. In our benchmarking analyses outlined in our `paper <sneep paper>`_, best results were observed for p-value thresholds between 0.01 and 0.001.
+The p-value threshold for D\ :sub: `max` is set to 0.01 by default. In our benchmarking analyses outlined in our `paper <sneep paper>`_, the best results were observed for p-value thresholds between 0.01 and 0.001.
 
 Flag -k: dbSNP database (dbSNPs_sorted.txt.gz)
 =============================================== 
