@@ -13,6 +13,11 @@
 #include <getopt.h> //einlesen der argumente
 #include <unordered_map>
 #include <random>
+
+
+//own classes
+#include "callBashCommand.hpp"
+
 using namespace std;
 
 class InOutput{
@@ -36,6 +41,7 @@ class InOutput{
 	void readScaleValues(string scaleFile, unordered_map<string, double>& scales);
 	void getInfoSNPs(vector<string>& leadSNPs, unordered_map<string, vector<string>>& proxySNPs);
 	int getNumberSNPs(string inputFile);
+	void fileFormatVCF();
 
 	//getter
 	double getPvalue();
@@ -79,7 +85,7 @@ class InOutput{
 
 	private: //glaube das sollte nicht private sein
 	int num_threads = 1; //-n
-	double pvalue = 0.05; //-p	
+	double pvalue = 0.5; //-p	
 	double pvalue_diff = 0.01; //-c
 	string frequence = ""; //-b
 	string footprint = ""; //-f path to footprint file
@@ -263,8 +269,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	}
 
 	PFMs = argv[optind++];
-	cout <<"PFM dir: " << PFMs << endl;
-	
+	cout <<"PFM dir: " << PFMs << endl;	
 	snpsNotUnique = argv[optind++];
 	snps = outputDir + "SNPsUnique.bed";
 	cout <<"SNP file: " << snpsNotUnique << endl;
@@ -272,6 +277,9 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	cout << "genome file: " << genome << endl;
 	scaleFile = argv[optind++];
 	cout << "scale file: " << scaleFile << endl;
+
+
+
 }
 
 ostream& operator<< (ostream& os, InOutput& io){
@@ -341,6 +349,27 @@ int InOutput::getNumberSNPs(string inputFile){
 	return counter/2;
 }
 
+
+// check if the snp file is in vcf format and if so parse in bed-like format
+void InOutput::fileFormatVCF(){
+
+	// is snp file in bed-like format or VCF format?
+	string formatedSNPFile =  outputDir + "formatedSNPs.txt";
+	string helper = snpsNotUnique; // copy of the file name
+	char delim = '.';
+	// check if file ending is vcf
+	getToken(helper, delim); // split file name at point 
+	//cout << helper << endl;
+	if (helper == "vcf" or helper == "VCF"){
+		//string formatedSNPFile =  outputDir + "formatedSNPs.txt";
+		// call python script to parse vcf to bed-like format
+		BashCommand bc_(getGenome()); //constructor bashcommand class
+		bc_.callFormatingScript(snpsNotUnique, formatedSNPFile);
+		snpsNotUnique = formatedSNPFile;
+	}
+	cout << "SNP file after VCF check: " << snpsNotUnique << endl;
+
+}
 
 //TODO:kommentieren
 void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
@@ -516,7 +545,7 @@ void InOutput::callHelp(){
 	cout << "Call program with ./src/differentialBindingAffinity_multipleSNPs\noptinal parameters:\n" << 
 	"-o outputDir (default SNEEP_output/, if you want to specific it, it must be done as first argument)\n" <<
 	"-n number threads (default 1)\n" <<
-	"-p pvalue for motif hits (default 0.05)\n"<<
+	"-p pvalue for motif hits (default 0.5)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
 	"-b base frequency for PFMs -> PWMs ( /necessaryInputFiles/frequency.txt)\n" <<
 	//"-s file where the computed scales per motif are stored ( necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<

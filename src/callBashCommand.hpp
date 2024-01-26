@@ -34,6 +34,7 @@ class BashCommand{
 	void sed(string options, string input, string output);
 	//void callHistogram(string input, string output, string sourceDir);
 	string getGenomeFile();
+	void callFormatingScript(string file, string formatedSNPFile);
 
 	private:
 //	string path_bedtools;
@@ -177,6 +178,14 @@ void BashCommand::bedtoolsShuffle(string randomSequences, string genomesFile, st
 //	system(command.c_str());
 //
 //}
+
+void BashCommand::callFormatingScript(string file,string  formatedSNPFile){
+
+	string command = "formatVCF.py " + file + " " + formatedSNPFile;
+	//cout << command << endl;
+	system(command.c_str());
+	return;
+}
 
 void BashCommand::anyCommand(string command){
 	system(command.c_str());

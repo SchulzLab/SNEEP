@@ -30,7 +30,7 @@
 #include <math.h>
 
 //for parallelization 
-#include <omp.h>
+//#include <omp.h>
 
 using namespace std;
 
@@ -70,7 +70,7 @@ double cdf_laplace_abs_max(double scale, double numberKmers, double value);
 
 int main(int argc, char *argv[]){
 
-//	cout << "HELLO" << endl;
+	cout << "HELLO github sneep version" << endl;
 	
 	//to output doubles whith a total of 17 digits
 	typedef numeric_limits< double > dbl;
@@ -85,12 +85,15 @@ int main(int argc, char *argv[]){
 		return (0);
 	}
 
-	//create instance bashCommand
+	//create instance bashCommand -> moved to handleInOutput.hpp -> parseInputPara
 	BashCommand bc(io.getGenome()); //constructor bashcommand class
 	bc.mkdir(io.getOutputDir(), "-p", true); //make outputDir
 	ofstream info = io.openFile(io.getInfoFile(), false); //open info file
 	info << io << endl; // write settings 
 	info.close();
+
+	// check if snps file is bed-like format or CVF
+	io.fileFormatVCF(); // if file is CVF format parse to bed-like format and store new file in outputDir as formatedSNPs.txt
 
 	io.checkIfSNPsAreUnique(); // removes SNPs from inputSNP list which are not unique  and stores them in info file
 	vector<string>leadSNPs; // a list of all lead SNPs
@@ -294,11 +297,24 @@ int main(int argc, char *argv[]){
 			//calculate probabiblity for sequences of the current TF	
 			if (probProSeq(PWMs[j], wildtypeSeq,  pvalues, io.getPvalue(), posMut, firstSeq) == 1){ //first_seq contains wildtype sequence
 				sigHit  = 1;
+			} 
+			//print out pvalues of binding score for all kmers of the current TF for wildtype seq
+		/*	cout << motif << "\twiltype";
+			for (auto i: firstSeq){
+				cout << '\t' << i;
 			}
+			cout << "\n"; */
 			//calculate pvalue of the mutated sequence	
 			if (probProSeq(PWMs[j], mutSeq, pvalues, io.getPvalue(), posMut, secondSeq) == 1){ //second_seq contain mutated sequence
 				sigHit = 1;
 			}
+			//print out pvalues of binding score for all kmers of the current TF for alterative seq
+			/*cout << motif << "\talternative";
+			for (auto i: firstSeq){
+				cout << '\t' << i;
+			}
+			cout << "\n";*/
+
 			//int maxDiff_index = 0;
 			if (sigHit == 1){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
 				for (int l = 0; l < firstSeq.size(); ++l){ 
@@ -306,6 +322,8 @@ int main(int argc, char *argv[]){
 					if (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue()){
 						posSigHit = pos + floor(l/2); //deterime position of the hit	
 						diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], log_, scales[motif], lenMotif*2);
+						//cout << diffBinding << "\t" << lenMotif << "\t" << motif << endl;
+
 						if (diffBinding <= maxDiffBinding){// and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
 							maxDiffBinding = diffBinding;
 							maxPosSigHit = posSigHit;
