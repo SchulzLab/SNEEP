@@ -140,7 +140,7 @@ Instead of the bedlike formated SNP file also a VCF can be given as input (endin
   1       222650187       rs17465637      A       C       .       .       
   2       202881162       .       T       A       .       .       .
 
-An example file is provided within our GitHub repo (see examples/SNPs_EFO_0000612_myocardial_infarction.VCF).
+An example file is provided within our GitHub repository (see examples/SNPs_EFO_0000612_myocardial_infarction.VCF).
 
 SNEEP can only handle mutations affecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Additionally, duplicated entries are only considered once.
 
