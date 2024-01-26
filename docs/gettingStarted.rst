@@ -132,12 +132,13 @@ If you want to consider a SNP, that has multiple alternative alleles, such as fo
 Instead of the bedlike formated SNP file also a VCF can be given as input (ending with .vcf or .VCF). For more details of the file format, see `here <https://www.internationalgenome.org/wiki/Analysis/Variant%20Call%20Format/vcf-variant-call-format-version-40/>`_. We expect the first 8 columns to be given, where QUAL and FILTER can be set as ".". If the rsID or the MAF is not known it is als set to ".". An example is shown below: 
 
 .. code-block:: console
-##fileformat=VCFv4.0
-#CHROM POS     ID        REF ALT    QUAL FILTER INFO
-1       154424940       rs12118721      T       C,G     .       .       MAF=1e-07
-1       222638065       rs35700460      A       G       .       .       MAF=2e-11
-1       222650187       rs17465637      A       C       .       .       
-2       202881162       .       T       A       .       .       .
+
+  ##fileformat=VCFv4.0
+  #CHROM POS     ID        REF ALT    QUAL FILTER INFO
+  1       154424940       rs12118721      T       C,G     .       .       MAF=1e-07
+  1       222638065       rs35700460      A       G       .       .       MAF=2e-11
+  1       222650187       rs17465637      A       C       .       .       
+  2       202881162       .       T       A       .       .       .
 
 
 SNEEP can only handle mutations affecting a single base pair (no deletions or insertions). Deletions and insertions are identified by the pipeline and ignored. Additionally, duplicated entries are only considered once.
