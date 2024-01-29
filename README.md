@@ -1,6 +1,6 @@
-# SNEEP: SNP exploration and functional analysis using epigenetic data
+# SNEEP: SNV exploration and functional analysis using epigenetic data
 
-SNEEP is a fast method to identify regulatory SNPs (rSNPs) that modify the binding sites of Transcription Factors (TFs) for large collections of SNPs or SNVs provided by the user. 
+SNEEP is a fast method to identify regulatory Single Nucleotid Variations (rSNVs) that modify the binding sites of Transcription Factors (TFs) for large collections of SNPs or SNVs provided by the user. 
 
 ## Documentation
 The full documentation is available on [Read the Docs](https://sneep.readthedocs.io/en/latest/index.html)
