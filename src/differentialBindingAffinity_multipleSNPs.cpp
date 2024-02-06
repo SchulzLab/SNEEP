@@ -30,7 +30,7 @@
 #include <math.h>
 
 //for parallelization 
-//#include <omp.h>
+#include <omp.h>
 
 using namespace std;
 
