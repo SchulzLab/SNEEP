@@ -11,8 +11,8 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 26.7.2023. Our paper about a first application with SNEEP got published in [Human Genomics](https://humgenomics.biomedcentral.com/articles/10.1186/s40246-023-00513-4)
 
 ## Versions 
-April 22th, 2024: v1.1: fixed an issue with the epsilon parameter
-XX:XX v1.0: We are happy to upload the offical first version of our software
+- April 22th, 2024: v1.1: fixed an issue with the epsilon parameter
+- March 18th 2024: v1.0: We are happy to upload the offical first version of our software
 
 ## References
 
