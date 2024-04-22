@@ -12,10 +12,10 @@
 #include <chrono> //for time
 #include <getopt.h> //einlesen der argumente
 #include <unordered_map>
+#include <unordered_set>
 #include <random>
 
-
-//own classes
+// include own functions
 #include "callBashCommand.hpp"
 
 using namespace std;
@@ -40,6 +40,7 @@ class InOutput{
 	void parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed);
 	void readScaleValues(string scaleFile, unordered_map<string, double>& scales);
 	void getInfoSNPs(vector<string>& leadSNPs, unordered_map<string, vector<string>>& proxySNPs);
+	void checkUniqAgain();
 	int getNumberSNPs(string inputFile);
 	void fileFormatVCF();
 
@@ -82,6 +83,7 @@ class InOutput{
 	bool getGeneBackground();
 	bool getTfBackground();
 	string getTransitionMatrix();
+	string getRandomSNPs();
 
 	private: //glaube das sollte nicht private sein
 	int num_threads = 1; //-n
@@ -98,6 +100,8 @@ class InOutput{
 	string mappingGeneNames = "";
 	string fasta = ""; //stores fasta seq of snps
 	string bed = ""; //bed file snps 
+	string bed_notUniq = ""; // bed file not uniq after REM or footprint intersection
+	string bed_notUniq_sorted = ""; //bed file not uniq after REM or footprint intersction but sorted
 	string info = "";
 	string overlappingFootprints = ""; //path to file where the overlapping footprints are stored
 	string overlappingREMs = ""; // same for REMs
@@ -106,6 +110,7 @@ class InOutput{
 	string resultFile =  "";
 	string PFMs; //must be given, transfac file
 	string snpsNotUnique; // must be given
+	string snpsNotUniqueSorted; // since inplace sort is not possible we need an addtional file here
 	string snps = "";
 	string notConsideredSNPs = "";
 	string ensembleGeneName = "";
@@ -125,6 +130,7 @@ class InOutput{
 	bool geneBackground = false;
 	bool tfBackground = false;
 	string scaleFile = "";
+	string randomSNPs = "";
 };
 
 //construtor
@@ -140,8 +146,7 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:af:mt:r:e:d:g:j:k:l:q:uvhx:")) != -1) {
-	//while ((opt = getopt(argc, argv, "o:n:p:c:b:s:af:mt:r:e:d:i:g:j:k:l:q:uvh")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:af:mt:r:e:d:g:j:k:l:q:uvhx:i:")) != -1) {
        		switch (opt) {
 		case 'o':
 			outputDir = optarg;
@@ -163,10 +168,6 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			frequence = optarg;
 			cout << "-b frequency: " << frequence << endl;
 			break;
-		//case 's':
-		//	scaleFile = optarg;
-		//	cout << "-s scaleFile: " << scaleFile << endl;
-		//	break;
 		case 'a':
 			allOutput = outputDir + "AllDiffBindAffinity.txt";
 			cout << "-a AllDiffBindAff: " << allOutput << endl;
@@ -223,6 +224,10 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			tfBackground = true;
 			cout << "-v perform TF enrichment  analysis: " << tfBackground << endl;	
 			break;
+		case 'i':
+			randomSNPs = optarg;
+			cout << "-i RandomSNPs are given: " << randomSNPs << endl;	
+			break;
 		case 'x':
 			transition_matrix = optarg;
 			cout << "-w transition matrix: " << transition_matrix << endl;
@@ -239,6 +244,8 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 
 	fasta = outputDir + "snpRegions.fa"; //stores fasta seq of snps
 	bed = outputDir + "snpRegions.bed"; //bed file snps 
+	bed_notUniq = outputDir + "snpsRegions_notUniq.bed"; // bed file but noy uniq 
+	bed_notUniq_sorted = outputDir + "snpsRegions_notUniq_sorted.bed"; // bed file but noy uniq but sorted
 	info = outputDir + "info.txt";
 	notConsideredSNPs = outputDir + "notConsideredSNPs.txt";
 	overlappingREMs = outputDir + "overlappingREMs.bed"; // same for REMs
@@ -271,6 +278,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	PFMs = argv[optind++];
 	cout <<"PFM dir: " << PFMs << endl;	
 	snpsNotUnique = argv[optind++];
+	snpsNotUniqueSorted = outputDir + "sortedSNPsNotUnique.txt";  
 	snps = outputDir + "SNPsUnique.bed";
 	cout <<"SNP file: " << snpsNotUnique << endl;
 	genome = argv[optind++];
@@ -294,7 +302,6 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-c p-value threshold diffBindAff: " << io.pvalue_diff << 
 	"\n#\t-b file of background freq: " << io.frequence << 
 	"\n#\t-f footprint/region file: " << io.footprint << 
-//	"\n#\t-s scaleFile: " << io.scaleFile << 
 	"\n#\t-m maxOutput: " << 
 	"\n#\t-t activeTFs: " << io.activeTFs << 
 	"\n#\t-r REMs: " << io.REMs <<
@@ -445,7 +452,7 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		}
 		overlappingREMs.close();
 	}
-	ofstream output(getSNPBedFile());
+	ofstream output(bed_notUniq);
 	ofstream output2(getBedFileInDels());//store InDels
 
 	string id = "", MAF = "";
@@ -513,7 +520,7 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	}else{
 		info_ << "!\toverlapPeak: -\n"; //info file
 	}
-//	consideredSNPs = counterOverlappingPeaks;
+	consideredSNPs = counterOverlappingPeaks;
 //	cout << "peaks considered: " << consideredSNPs << endl;
 
 	if (getREMs() != ""){
@@ -548,7 +555,6 @@ void InOutput::callHelp(){
 	"-p pvalue for motif hits (default 0.5)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
 	"-b base frequency for PFMs -> PWMs ( /necessaryInputFiles/frequency.txt)\n" <<
-	//"-s file where the computed scales per motif are stored ( necessaryInputFiles/estimatedScalesPerMotif_1.9.txt) \n" <<
 	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
 	"-f additional footprint/open chromatin region file in bed file format\n" <<
 	"-m if flag is set, the  maximal differential binding affinity per SNP is printed\n"<<
@@ -656,9 +662,23 @@ void InOutput::getInfoSNPs(vector<string>& leadSNPs, unordered_map<string,vector
 	}
 }
 
+// check if snps are still uniq after intersection with REMs or footprints
+void InOutput::checkUniqAgain(){
+
+	BashCommand bc_(getGenome()); //constructor bashcommand class
+	bc_.sort("-k1,1 -k2,2n", bed_notUniq, bed_notUniq_sorted);
+	bc_.uniq("", bed_notUniq_sorted ,getSNPBedFile());
+}
+
+// to avoid to hold the file in memory, we rather sort the file and can so directly identify duplicated entries 
 void InOutput::checkIfSNPsAreUnique(){
 
-	ifstream input(snpsNotUnique); //open file
+	// sort the file using a bash command
+	BashCommand bc_(getGenome()); //constructor bashcommand class
+	bc_.sort("-k1,1 -k2,2n", snpsNotUnique, snpsNotUniqueSorted);
+	cout << "sorting done" << endl;
+
+	ifstream input(snpsNotUniqueSorted); //open file
 	ofstream output = openFile(snps, false);
 	ofstream info_ = openFile(getInfoFile(), true);
 	ofstream notConsidered = openFile(getNotConsideredSNPs(), false);
@@ -667,31 +687,52 @@ void InOutput::checkIfSNPsAreUnique(){
 	double counterUnique = 0; //counts relevant SNPs
 	string line = "", originalLine = "", token = "";
 	char delim = '\t';
-	vector<string> SNPs;
-	SNPs.push_back("wrongFormat");
+	//vector<string> SNPs;
 	int pos = 0;
 	//read file
+	string previous_pos = "000";
+	unordered_set<string> seen_alleles;
 	while (getline(input, line, '\n')){
 		counterAllSNPs++;
 		originalLine = line;
-		string helper = "";
-		for (int i = 0; i < 5; ++i){ //read only entries REMs
-			pos = line.find(delim);
-			token = line.substr(0, pos);
-			if ((i >= 3) & ((token == "-" ) | (token.size() >1))){
-				helper = "wrongFormat" ;
-				break;
+		// get info from file (chr start end allele1 allele2
+		pos = line.find(delim);
+		string chr_ = line.substr(0, pos);
+		line.erase(0, pos + 1);
+		pos = line.find(delim);
+		string start = line.substr(0, pos);
+		line.erase(0, pos + 1);
+		pos = line.find(delim);
+		string end = line.substr(0, pos);
+		line.erase(0, pos + 1);
+	
+		string current_pos =  chr_ + ":" + start + "-" + end;
+
+		pos = line.find(delim);
+		string a1 = line.substr(0, pos);
+		line.erase(0, pos + 1);
+		pos = line.find(delim);
+		string a2 = line.substr(0, pos);
+		line.erase(0, pos + 1);
+		if((a1 == "A"  or a1 == "C"  or a1 == "G"  or a1 == "T"  or a1 == "a"  or a1 == "c"  or a1 == "g"  or a1 == "t") and (a2 == "A"  or a2 == "C"  or a2 == "G"  or a2 == "T"  or a2 == "a"  or a2 == "c"  or a2 == "g"  or a2 == "t")){ //check if valid SNP
+			if (current_pos == previous_pos){ // only if the positions are the same check if alleles are the same
+				string alleles = a1 + "-" + a2;
+
+				if (count(seen_alleles.begin(), seen_alleles.end(), alleles) == 0){
+					//SNPs.push_back(helper);
+					seen_alleles.insert(alleles);
+					output << originalLine << '\n';
+					counterUnique++;
+				}
 			}else{
-				helper = helper + token;
+				previous_pos = current_pos;
+				seen_alleles.clear();
+				output << originalLine << '\n';
+				counterUnique++;
 			}
-			line.erase(0, pos + 1);
-		}
-		if (count(SNPs.begin(), SNPs.end(), helper) == 0){
-			SNPs.push_back(helper);
-			output << originalLine << '\n';
-			counterUnique++;
 		}else{
 			notConsidered << originalLine + '\n';
+
 		}
 	}
 	info_ << "!\tnumSNPSInputFile: " << counterAllSNPs << "\n" << "!\tnumRemovedDuplicates: " << counterAllSNPs - counterUnique << '\n'; 
@@ -989,5 +1030,8 @@ bool InOutput::getTfBackground(){
 }
 string InOutput::getTransitionMatrix(){
 	return this->transition_matrix;
+}
+string InOutput::getRandomSNPs(){
+	return this->randomSNPs;
 }
 #endif/*HANDLEINOUTPUT_HPP*/

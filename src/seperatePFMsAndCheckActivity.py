@@ -4,8 +4,10 @@ import sys, os, random, math
 
 EPSILON = 0.001 
 #EPSILON = 0.0001 
-ZERO2 = [0.001, 0.002]
-ZERO3 = [0.001, 0.002, 0.003]
+#ZERO2 = [0.001, 0.002]
+ZERO2 = [0.001, 0.001]
+#ZERO3 = [0.001, 0.002, 0.003]
+ZERO3 = [0.001, 0.001, 0.001]
 
 ENTROPY = 1.9
 #def compansatAddEpsilon(zero_A, A, no_zeros, i ,e):
@@ -170,9 +172,10 @@ def convertCountToFreq(A,C,G,T):
 				T[i] = T[i] + EPSILON
 
 		c = 0
-		random.shuffle(ZERO2) #shuffle list random -> avoid assining same value to same letter 
+		#random.shuffle(ZERO2) #shuffle list random -> avoid assining same value to same letter 
 		if number_of_zeros == 2: # add slightly variny epsioln to the positions _> sum is still 2* epsilon	
-			multi_factor = 0.003
+			#multi_factor = 0.003
+			multi_factor = 0.002
 			if zero_A == True:
 				A[i] = A[i] + ZERO2[c]
 				c+= 1
@@ -187,9 +190,10 @@ def convertCountToFreq(A,C,G,T):
 				c+= 1
 	
 		c = 0
-		random.shuffle(ZERO3)
+		#random.shuffle(ZERO3)
 		if number_of_zeros == 3: # add slightly varing epsilon to the position	-> sum is still 3* epsilon
-			multi_factor = 0.006
+			#multi_factor = 0.006
+			multi_factor = 0.003
 			if zero_A == True:
 				A[i] = A[i] + ZERO3[c]
 				c+= 1
@@ -268,7 +272,7 @@ else:
 	threshold = float(sys.argv[5])
 	infoFile = sys.argv[6]
 
-	random.seed(123)
+	#random.seed(123)
 	with open(infoFile, 'w') as o:
 		o.write("TF\toriginalLen\tbasesWithHighEntropy\tstart\tend\tadaptedLen\n")
 	#create mapping ensemble id -> gene name and via vice

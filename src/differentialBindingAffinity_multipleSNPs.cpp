@@ -34,13 +34,11 @@
 
 using namespace std;
 
-
 //------------------------------
 //Global variables default values 
 int COMPLEMENT[] = {0,4,0,3,1,0,0,2,0,0,0,0,0,0,5};// considers also N
 int POSITION[] = {0,1,0,2,4,0,0,3,0,0,0,0,0,0,5}; // considers also N 
 double EPSILON = 0.001; // accuracy of the PWMs, EPSILON which is added to zeor PWM entries
-//vector<double> SCALES = {0,0,0,0,0,0, 0.5099464874518722, 0.4667031501892002 , 0.433783753309124 , 0.40715127687298763, 0.3826005840545816 , 0.3787599566935292, 0.34774610222605595 , 0.34514695643150634,  0.334825561698675, 0.31438987031152266  , 0.3011626326230248, 0.2917197382561486, 0.2889961985763163, 0.2834156088976374, 0.2657082044936282, 0.28252991969868096, 0.2327379244822218, 0.2565442603258892 , 0.24312782127390908 , 0,0,0.22659238366923132 , 0,0,0,0,0,0,0.2116550921968819, 0.21663464972735508}; // from motif length 6 to 35 
 
 //functions
 vector<string> readDirectory(const char *path); //stores all files of a directory
@@ -113,16 +111,16 @@ int main(int argc, char *argv[]){
 
 	//check if there is a REM file and if so determine overlap with the given SNPs
 	string REMs = io.getREMs();
-	unordered_map<string, vector<string>> SNPsToOverlappingREMs;
+	//unordered_map<string, vector<string>> SNPsToOverlappingREMs;
 	if (REMs != ""){
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\n";
 		string output = io.getOverlappingREMs();
 		bc.intersect(REMs, SNPFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 	}else{
 		
 		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tfdr_corrected_pvalue\n";
+		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\n";
 	}
 	//determine overlapping peaks
 	string footprintFile = io.getFootprints();
@@ -138,6 +136,9 @@ int main(int argc, char *argv[]){
 		//parse bedfile 
 		io.parseSNPsBedfile(SNPFile, entriesSNPFile);
 	}
+	//check again if file is unique (if a snp overlaps with more than one REM we might include them publicated here
+	io.checkUniqAgain();
+
 	//call getFasta
 	bc.getFasta(io.getSNPBedFile(), io.getSNPfastaFile(), "-name");
 
@@ -379,7 +380,11 @@ int main(int argc, char *argv[]){
 				
 			#pragma omp critical 
 			//resultFile << part1 << '\t' << motif << '\t' << value   << std::scientific << maxDiffBinding << "\tneedToBeComputeds\t" << part2;
-			resultAllSNPs.push_back(make_tuple( p,m,  part1 + '\t' + m + '\t' +  helperOverallResult[m],  part2 ));
+			//resultAllSNPs.push_back(make_tuple( p,m,  part1 + '\t' + m + '\t' +  helperOverallResult[m],  part2 ));
+			if (p <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ // cutoff based on not fdr corrected pvalue for Jayas data (also for background sampling)
+				resultFile << part1 << '\t' << m << '\t' <<  helperOverallResult[m] <<  std::scientific << p << '\t' << part2;
+				realData_TFs[m]+=1;// count number of TF hits seen in original data
+			}
 		}
 		
 		if (writeOutput){ // and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
@@ -390,7 +395,7 @@ int main(int argc, char *argv[]){
 
 
 	//sort resultAllSNPs based on p-value 
-	sort(resultAllSNPs.begin(), resultAllSNPs.end(),sortby);
+	/*sort(resultAllSNPs.begin(), resultAllSNPs.end(),sortby);
 
 	//compute fdr	
 	double snpsXmotifs = numMotifs * numberSNPs; 
@@ -418,7 +423,7 @@ int main(int argc, char *argv[]){
 		}
 	}
 	cout << "rank after correction: " << rank << endl; 
-
+	*/
 	resultFile.close();
 	///outputMax.close();
 	output.close();
@@ -470,36 +475,46 @@ int main(int argc, char *argv[]){
 		cout << "number TFs: " << numMotifs << endl; 
 		cout << "number TFs considered background sampling: " << randomSampling_numMotifs << endl; 
 
+		string randomDir = "";	
+		vector<string> SNP_filenames (rounds, ""); // initalize vector holding the random files 
+
 		//initialize variables
 		vector<double> MAF;
 		unordered_map<double, int> MAF_counter;
 		double pvalue = io.getPvalue(), pvalueDiff = io.getPvalueDiff();
-		string randomDir = outputDir + "sampling";
-		bc.mkdir(randomDir, "-p" , false);
 
-		// new strategy: always compute proxy snps of the lead SNPs -> sample only as many SNPs as lead SNPs were available
-		//if (io.getTfBackground() == true){
+		if (io.getRandomSNPs() == ""){	
+			cout << "sample snps case" << endl;
+			randomDir = outputDir + "sampling";
+			bc.mkdir(randomDir, "-p" , false);
+			// new strategy: always compute proxy snps of the lead SNPs -> sample only as many SNPs as lead SNPs were available
+			//if (io.getTfBackground() == true){
 			determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
-		//}else{ //only gene background, only sample as many random snps as lead snps
-			// TODO: this command is needed to get the lead snps
-		//determineMAFsForLeadSNPs(io.getSNPBedFile(), MAF, leadSNPs); //read MAF distribution from input SNP file
-		//}
+			
+			//}else{ //only gene background, only sample as many random snps as lead snps
+				// TODO: this command is needed to get the lead snps
+			//determineMAFsForLeadSNPs(io.getSNPBedFile(), MAF, leadSNPs); //read MAF distribution from input SNP file
+			//}
 
-		sort(MAF.begin(), MAF.end(), std::less<double>()); //sort MAF with default operation <
+			sort(MAF.begin(), MAF.end(), std::less<double>()); //sort MAF with default operation <
 
-		rsIDsampler s(0.01, io.getdbSNPs(), MAF, bc); //initialize snp sampler
-		MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
-		cout << "before sampling" << endl;
+			rsIDsampler s(0.01, io.getdbSNPs(), MAF, bc); //initialize snp sampler
+			MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
+			cout << "before sampling" << endl;
 		//vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSourceDir(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
-		vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
-		cout << "after sampling" << endl;
-		cout << "determine proxy SNPs" << endl;
-		// TODO: introduce tw new parameter: for how many leadSNPs shall we sample proxy SNPs, and where is the file to snipa
-		// sort the sampled SNP files according to their chromosome and sample randomly number of lead SNPs many snps (bash) 
-		// look up proxy SNPs
-		// remove dublicated SNPs
-		// count number of unique SNPs 
-		// rerun statistical analysis 
+			SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+			cout << "after sampling" << endl;
+		}else{
+			randomDir = io.getRandomSNPs();
+			cout << "randomly sampled SNPs are provided" << endl; 
+
+			string num = "";
+			for (int r = 0; r < rounds; r++){
+				num = to_string(r);
+				SNP_filenames[r] = randomDir + "/randomSNPs_" + num + ".txt";	
+			}
+			
+		}
 
 		string SNP_file = "", SNPs_overlappingREMs = "", bedFile = "", fastaFile = "", currentRound = "";
 		ofstream randomResult;
@@ -666,6 +681,7 @@ int main(int argc, char *argv[]){
 			}
 
 			//sort resultAllSNPs based on p-value 
+			double snpsXmotifs = numMotifs * numberSNPs; 
 			sort(currentResultAllSNPs.begin(), currentResultAllSNPs.end(),sortby);
 			//compute fdr
 			//cout << "number of tests: "  << snpsXmotifs << endl;

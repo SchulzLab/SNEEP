@@ -32,6 +32,8 @@ class BashCommand{
 	void bedtoolsShuffle(string randomSequences, string genomesFile, string excludedSeq, int seed, string options, string output);
 	void anyCommand(string command);
 	void sed(string options, string input, string output);
+	void sort(string options, string input, string output);
+	void uniq(string options, string input, string output);
 	//void callHistogram(string input, string output, string sourceDir);
 	string getGenomeFile();
 	void callFormatingScript(string file, string formatedSNPFile);
@@ -197,6 +199,22 @@ void BashCommand::sed(string options, string input, string output){
 
 	//system(command.c_str());
 	string command = "sed " + options + " " + input + ">" + output;
+	return;
+}
+
+void BashCommand::sort(string options, string input, string output){
+	// for chr positions options should be -k1,1 -k2,2n 
+//	string command = "sort " + options + " -o " + input + "{,}";
+
+	string command = "sort " + options  + " " +  input  + "> " + output;
+	cout << command << endl;
+	system(command.c_str());	
+	return;
+}
+void BashCommand::uniq(string options, string input, string output){
+	string command = "uniq " + options + " " + input + " > " + output;
+	cout << command << endl;
+	system(command.c_str());	
 	return;
 }
 
