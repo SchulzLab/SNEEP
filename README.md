@@ -25,6 +25,6 @@ We used our statistical approach to determine non-coding disease genes in cardio
 
 Chaonan Zhu, Nina Baumgarten, Meiqian Wu, Yue Wang, Arka Provo Das, Jaskiran Kaur, Fatemeh Behjati Ardakani, Thanh Thuy Duong, Minh Duc Pham, Maria Duda, Stefanie Dimmeler, Ting Yuan, Marcel H. Schulz, Jaya Krishnan (2023), **CVD-associated SNPs with with regulatory potential reveal novel non-coding disease genes**, Human Genomics 2023 [full text](https://humgenomics.biomedcentral.com/articles/10.1186/s40246-023-00513-4)
 
-We a currently working on a paper that introduces the statistical background and all abilities of our SNEEP pipeline in more detail.
+We a currently working on a paper that introduces our SNEEP pipeline in more detail.
 
 
