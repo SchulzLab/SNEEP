@@ -19,7 +19,7 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 For our statistical approach, please cite: 
 
 Nina Baumgarten, Laura Rumpf, Thorsten Kessler, Marcel H. Schulz (2024), **A statistical approach for identifying single nucleotide variants that affect transcription factor binding**, iScience, 
-[pre-proof](https://doi.org/10.1016/j.isci.2024.109765 )
+[pre-proof](https://www.cell.com/iscience/fulltext/S2589-0042(24)00987-8)
 
 We used our statistical approach to determine non-coding disease genes in cardiovascular diseasee. For more details see: 
 
