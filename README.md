@@ -8,7 +8,7 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 ![sneep_logo.png](sneep_logo.png)
 
 ## News
-- 06.05.2024. Our paper that explain the statistical approach of sneep is published in [iScience](https://www.cell.com/action/showPdf?pii=S2589-0042%2824%2900987-8)
+- 06.05.2024. Our paper that explain the statistical approach of sneep got published in [iScience](https://www.cell.com/action/showPdf?pii=S2589-0042%2824%2900987-8)
 - 26.7.2023. Our paper about a first application with SNEEP got published in [Human Genomics](https://humgenomics.biomedcentral.com/articles/10.1186/s40246-023-00513-4)
 
 ## Versions 
