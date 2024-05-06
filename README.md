@@ -8,7 +8,8 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 ![sneep_logo.png](sneep_logo.png)
 
 ## News
-26.7.2023. Our paper about a first application with SNEEP got published in [Human Genomics](https://humgenomics.biomedcentral.com/articles/10.1186/s40246-023-00513-4)
+- 06.05.2024. Our paper that explain the statistical approach of sneep is published in [iScience](https://www.cell.com/action/showPdf?pii=S2589-0042%2824%2900987-8)
+- 26.7.2023. Our paper about a first application with SNEEP got published in [Human Genomics](https://humgenomics.biomedcentral.com/articles/10.1186/s40246-023-00513-4)
 
 ## Versions 
 - April 22th, 2024: v1.1: fixed an issue with the epsilon parameter
@@ -19,7 +20,7 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 For our statistical approach, please cite: 
 
 Nina Baumgarten, Laura Rumpf, Thorsten Kessler, Marcel H. Schulz (2024), **A statistical approach for identifying single nucleotide variants that affect transcription factor binding**, iScience, 
-[pre-proof](https://www.cell.com/iscience/fulltext/S2589-0042(24)00987-8)
+[pdf](06.05.2024. Our paper that explain the statistical approach of sneep is published in [iScience](https://www.cell.com/action/showPdf?pii=S2589-0042%2824%2900987-8)), [web](https://www.cell.com/iscience/fulltext/S2589-0042(24)00987-8)
 
 We used our statistical approach to determine non-coding disease genes in cardiovascular diseasee. For more details see: 
 
