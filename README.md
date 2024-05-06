@@ -20,7 +20,7 @@ The full documentation is available on [Read the Docs](https://sneep.readthedocs
 For our statistical approach, please cite: 
 
 Nina Baumgarten, Laura Rumpf, Thorsten Kessler, Marcel H. Schulz (2024), **A statistical approach for identifying single nucleotide variants that affect transcription factor binding**, iScience, 
-[pdf](06.05.2024. Our paper that explain the statistical approach of sneep is published in [iScience](https://www.cell.com/action/showPdf?pii=S2589-0042%2824%2900987-8)), [web](https://www.cell.com/iscience/fulltext/S2589-0042(24)00987-8)
+[pdf](https://www.cell.com/action/showPdf?pii=S2589-0042%2824%2900987-8), [web](https://www.cell.com/iscience/fulltext/S2589-0042(24)00987-8)
 
 We used our statistical approach to determine non-coding disease genes in cardiovascular diseasee. For more details see: 
 
