@@ -3,16 +3,20 @@
 
 #include <string>
 #include <stdexcept>
-#include <iostream> 
+#include <iostream>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <random>
 #include <array>
 #include <unordered_map>
+#include <unordered_set>
+#include <map>
+#include <set>
 #include <vector>
 
-//for parallelization 
+//for parallelization
 //#include <omp.h>
 
 
@@ -21,51 +25,117 @@
 
 int MAXIMAL_ROUNDS = 1500;
 
+// number of flanking bases on each side of the SNV used for the GC content (window = 2 * GC_FLANK + 1 bp)
+// must be the same as in getSNPInfo.cpp, which precomputes the GC content of the dbSNP SNVs
+const int GC_FLANK = 30;
+
 using namespace std;
+
+/*
+* GC content in a window of +- flank bp around position center of seq
+* GC = (#C + #G) / (#A + #C + #G + #T), lower case bases are counted, N (and other symbols) are excluded
+* returns -1 if the window contains no A, C, G or T, numN and windowLength are set for the warnings
+* the result is rounded to 6 significant digits, as written by getSNPInfo (awk), such that equal values end up in the same bin
+*/
+double gcContent(const string& seq, int center, int flank, int& numN, int& windowLength){
+
+	int start = max(0, center - flank), end = min((int)seq.size() - 1, center + flank);
+	int gc = 0, acgt = 0;
+	numN = 0;
+	windowLength = end - start + 1;
+	for (int i = start; i <= end; ++i){
+		switch (seq[i]){
+		case 'C': case 'c': case 'G': case 'g':
+			gc++;
+			acgt++;
+			break;
+		case 'A': case 'a': case 'T': case 't':
+			acgt++;
+			break;
+		case 'N': case 'n':
+			numN++;
+			break;
+		}
+	}
+	if (acgt == 0){
+		return -1;
+	}
+	ostringstream rounded;
+	rounded << setprecision(6) << (double)gc / acgt;
+	return stod(rounded.str());
+}
 
 class rsIDsampler{
 
 	public:
 	//Constructor
-	rsIDsampler(string pathTodbSNPFile_, vector<double>& MAF_, BashCommand& bc_);
-	rsIDsampler(double binwidth_, string pathTodbSNPFile_, vector<double>& MAF_, BashCommand& bc_);
+	rsIDsampler(double binwidth_, string pathTodbSNPFile_, vector<double>& MAF_); // MAF matching only
+	rsIDsampler(double binwidth_, double gcBinwidth_, string pathTodbSNPFile_, vector<double>& MAF_, vector<double>& GC_); // MAF x GC matching, GC_[i] = -1: SNV i is matched by MAF only
 	//Deconstructor
 	~rsIDsampler();
 
 	//functions
-
-	unordered_map<double, int> splitMAFinBins();
+	vector<string> determineRandomSNPs(string outputDir, int rounds, int seed);
 	string getToken(string& line, char delim);
-	//vector<string> determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, string sourceDir, int seed);
-	vector<string> determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, int seed);
-	void sampleSNPs(int counter, string outputFile, vector<string>& SNPs, int seed, int size, string histogramFile);
-//	void determineRandomSamples(unordered_map<double,int>& MAF_counter, string outputFile, unordered_map<double, vector<string>>& dbSNPs, int seed, string histogram, vector<double>& keys);
-//	unordered_map<double, vector<string>> storeDbSNPs();
 
 	//getter
 	double getBinwidth();
 	string getdbSNPFile();
 	vector<double> getMAF();
+	vector<string> getWarnings();
 
 	private: // all variables with a getter should be private
+
+	// number of SNVs to sample per MAF bin: MAF only and per GC bin
+	struct Request{
+		int mafOnly = 0;
+		map<int, int> gc; // GC bin -> count
+		int total(){
+			int sum = mafOnly;
+			for (auto& elem : gc){
+				sum += elem.second;
+			}
+			return sum;
+		}
+	};
+
+	int binIndex(double value, vector<double>& edges, double width);
+	int gcBinIndex(double gc);
+	string binName(vector<double>& edges, int bin);
+	void splitInBins();
+	void checkGCColumn();
+	void sampleBin(int seedBin, Request& request, vector<string>& lines, vector<int>& lineGCBins, int rounds, int seed, vector<string>& output, vector<long>& counts);
+	void sampleSNPs(int counter, vector<string>& lines, vector<int>* pool, mt19937& generator, string& output);
+
 	double binwidth;
-	BashCommand bc; //bash command object	
+	double gcBinwidth = 0.05;
+	bool gcMatching = false;
 	string dbSNPFile = "";
 	vector<double> MAF;
+	vector<double> GC;
+	vector<double> mafEdges; // upper bin edges: (edge[k-1], edge[k]], edge[0] = -1 (MAF not given), edge[1] = 0
+	vector<double> gcEdges; // same for GC, edge[0] = -1 (no A, C, G, T in the window)
+	int numGCBins = 0; // number of GC bins incl. bin 0 (GC = -1)
+	map<int, Request> requests; // MAF bin -> SNVs to sample
+	vector<string> warnings;
 };
-//constructor default
-rsIDsampler::rsIDsampler(string pathTodbSNPFile_, vector<double>& MAF_, BashCommand& bc_)
-:binwidth(0.01), dbSNPFile(pathTodbSNPFile_),MAF(MAF_), bc(bc_)
+
+// constructor MAF matching only
+rsIDsampler::rsIDsampler(double binwidth_, string pathTodbSNPFile_, vector<double>& MAF_)
+:binwidth(binwidth_), dbSNPFile(pathTodbSNPFile_),MAF(MAF_)
 {
-//	BashCommand bc;
-//	cout << "constructor with default setting (num_reg = 1 and len = 100)" << endl;
+	splitInBins();
 }
 
-// constructor normally used
-rsIDsampler::rsIDsampler(double binwidth_, string pathTodbSNPFile_, vector<double>& MAF_, BashCommand& bc_)
-:binwidth(binwidth_), dbSNPFile(pathTodbSNPFile_),MAF(MAF_), bc(bc_)
+// constructor MAF x GC matching
+rsIDsampler::rsIDsampler(double binwidth_, double gcBinwidth_, string pathTodbSNPFile_, vector<double>& MAF_, vector<double>& GC_)
+:binwidth(binwidth_), gcBinwidth(gcBinwidth_), gcMatching(true), dbSNPFile(pathTodbSNPFile_),MAF(MAF_), GC(GC_)
 {
-//	cout << "constructor with user defind settings" << endl;
+	if (GC.size() != MAF.size()){
+		throw invalid_argument("number of MAF and GC values of the input SNVs differ");
+	}
+	checkGCColumn();
+	splitInBins();
 }
 
 //deconstructor
@@ -74,151 +144,313 @@ rsIDsampler::~rsIDsampler()
 }
 
 /*
-// reads SNPs bin per bin from the dbSNP file and determines random SNPs for the given rounds per bin
+* returns the bin index of value: smallest k with value <= edges[k]
+* edges are extended as in the original implementation (-1, 0, then repeatedly += width),
+* such that the bins (incl. floating point drift) are identical to the former MAF bins
 */
-//vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, string sourceDir, int seed){
-vector<string> rsIDsampler::determineRandomSNPs(unordered_map<double,int>& MAF_counter, string outputDir, int rounds, int numThreads, int seed){
+int rsIDsampler::binIndex(double value, vector<double>& edges, double width){
+	if (edges.empty()){
+		edges.push_back(-1.0);
+		edges.push_back(0.0);
+	}
+	while (value > edges.back()){
+		edges.push_back(edges.back() + width);
+	}
+	return lower_bound(edges.begin(), edges.end(), value) - edges.begin();
+}
 
-	double bin = -1.0, currentMAF = 0.0; 
-	int counter = 0,  size = 0; //alternative 53330
-	vector<string> currentSNPs;
+/*
+* GC bin: 0 for GC = -1, 1 for GC = 0, then (0, gcBinwidth], ... up to (1 - gcBinwidth, 1]
+*/
+int rsIDsampler::gcBinIndex(double gc){
+	return min(binIndex(gc, gcEdges, gcBinwidth), numGCBins - 1); // GC = 1 might exceed the last edge due to floating point drift
+}
+
+/*
+* name of a bin for the warnings
+*/
+string rsIDsampler::binName(vector<double>& edges, int bin){
+	if (bin == 0){
+		return "-1 (not given)";
+	}
+	if (bin == 1){
+		return "0";
+	}
+	return "(" + to_string(edges[bin - 1]) + ", " + to_string(edges[bin]) + "]";
+}
+
+/*
+* counts per MAF bin (and GC bin) how many SNVs need to be sampled
+*/
+void rsIDsampler::splitInBins(){
+	numGCBins = 2 + (int)(1.0 / gcBinwidth + 0.5); // GC = -1, GC = 0, (0, gcBinwidth], ..., (1 - gcBinwidth, 1]
+	for (size_t i = 0; i < MAF.size(); ++i){
+		Request& request = requests[binIndex(MAF[i], mafEdges, binwidth)];
+		if (gcMatching and GC[i] != -1){
+			request.gc[gcBinIndex(GC[i])]++;
+		}else{
+			request.mafOnly++;
+		}
+	}
+	return;
+}
+
+/*
+* the dbSNP file must contain the GC content as column 9 (see getSNPInfo.cpp)
+*/
+void rsIDsampler::checkGCColumn(){
+	ifstream inputFile(dbSNPFile);
+	if (!inputFile){
+		throw invalid_argument("cannot open dbSNP file: " + dbSNPFile);
+	}
 	string line = "";
-	
+	getline(inputFile, line, '\n');
+	if (count(line.begin(), line.end(), '\t') < 8){
+		throw invalid_argument("GC content matching (-s true) requires a dbSNP file with the GC content in column 9 (created with getSNPInfo): " + dbSNPFile);
+	}
+	return;
+}
+
+/*
+* reads the dbSNP file (sorted by MAF) bin per bin and samples random SNPs for all rounds per bin
+* returns the files of the random SNPs, one per round
+*/
+vector<string> rsIDsampler::determineRandomSNPs(string outputDir, int rounds, int seed){
+
 	//create vector that holds rounds as string (not as int as in the for loop)
 	vector<string> SNP_files (rounds, "");
-	vector<string> histogram_files (rounds, "");
-	string num = "";
-	ofstream h; 
 	for(int r = 0; r < rounds; ++r){
-		num = to_string(r);
-		SNP_files[r] = outputDir + "/randomSNPs_" + num + ".txt";
-		//histogram_files[r] = outputDir + "/histogram_" + num + ".txt";
-		//write header of the histogram file
-		//h.open(histogram_files[r]);
-		//h << "SNP\tMAF\n"; 
-		//h.close();
+		SNP_files[r] = outputDir + "/randomSNPs_" + to_string(r) + ".txt";
 	}
-	
+	vector<long> counts (rounds, 0); // number of sampled SNPs per round
+	vector<string> output (rounds, "");
+	ofstream outputFile;
+
+	// first pass: sample all MAF bins that exist in the dbSNP file
+	set<int> existingBins;
+	vector<string> currentSNPs;
+	vector<int> currentGCBins;
+	int currentBin = -1, bin = 0;
+	string line = "";
 	ifstream inputFile(dbSNPFile); //open dbSNPFile
+	if (!inputFile){
+		throw invalid_argument("cannot open dbSNP file: " + dbSNPFile);
+	}
 	while (getline(inputFile, line, '\n')){
-		//cout << "line: " << line << endl;
-		currentMAF = stod(getToken(line, '\t'));
-		if (currentMAF <= bin){
-			currentSNPs.push_back(line);
-		}else{
-			//determine MAF counter
-			if (MAF_counter.count(bin) >0){ //checks if the bin exist in MAF_counter
-				counter = MAF_counter[bin];
-				size = currentSNPs.size();
-				//cout << "bin " << bin << endl;
-				for(int r = 0; r < rounds; ++r){
-					//cout << r << endl;
-					sampleSNPs(counter, SNP_files[r] , currentSNPs, seed + r, size, histogram_files[r]);
-				}
-			}	
-			//increase bin, clear currentSNPs and increase seed
-			currentSNPs.clear();
-			seed+=MAXIMAL_ROUNDS; //increase seed per bin
-			if (bin == -1){ //set to 0 if bin was -1
-				bin = 0.0;
-			}else{
-				bin += binwidth;
+		bin = binIndex(stod(getToken(line, '\t')), mafEdges, binwidth);
+		if (bin != currentBin){
+			if (bin < currentBin){
+				throw invalid_argument("dbSNP file is not sorted by MAF: " + dbSNPFile);
 			}
-			//add new SNP to currentSNPs
+			if (!currentSNPs.empty()){
+				sampleBin(currentBin, requests[currentBin], currentSNPs, currentGCBins, rounds, seed, output, counts);
+				for(int r = 0; r < rounds; ++r){ // write per MAF bin to keep the memory small
+					outputFile.open(SNP_files[r], std::ofstream::app);
+					outputFile << output[r];
+					outputFile.close();
+					output[r].clear();
+				}
+			}
+			currentSNPs.clear();
+			currentGCBins.clear();
+			currentBin = bin;
+			existingBins.insert(bin);
+		}
+		if (requests.count(bin) > 0){ // only store SNPs of bins we need
 			currentSNPs.push_back(line);
+			if (gcMatching){
+				currentGCBins.push_back(gcBinIndex(stod(line.substr(line.rfind('\t') + 1))));
+			}
 		}
 	}
+	inputFile.close();
 	//sample random SNPs for the last bin
-	if (MAF_counter.count(bin) >0){ //checks if the bin exist in MAF_counter
-	//	cout << "bin " << bin << endl;
-		counter = MAF_counter[bin];
-		size = currentSNPs.size();
-		for(int r = 0; r < rounds; ++r){
-			sampleSNPs(counter, SNP_files[r], currentSNPs, seed + r, size, histogram_files[r]);
+	if (!currentSNPs.empty()){
+		sampleBin(currentBin, requests[currentBin], currentSNPs, currentGCBins, rounds, seed, output, counts);
+	}
+
+	// MAF bins of the input SNPs that do not exist in the dbSNP file -> use the nearest existing MAF bin
+	map<int, vector<int>> fallbackBins; // existing MAF bin -> missing MAF bins
+	for (auto& request : requests){
+		int missing = request.first;
+		if (existingBins.count(missing) > 0){
+			continue;
+		}
+		if (existingBins.empty()){
+			throw invalid_argument("dbSNP file is empty: " + dbSNPFile);
+		}
+		auto upper = existingBins.lower_bound(missing);
+		int target = 0;
+		if (upper == existingBins.end()){
+			target = *existingBins.rbegin();
+		}else if (upper == existingBins.begin()){
+			target = *upper;
+		}else{
+			int above = *upper, below = *prev(upper);
+			if (above - missing == missing - below){ // tie: random choice
+				mt19937 generator(seed + missing * MAXIMAL_ROUNDS);
+				target = uniform_int_distribution<int>(0, 1)(generator) == 0 ? below : above;
+			}else{
+				target = (above - missing < missing - below) ? above : below;
+			}
+		}
+		fallbackBins[target].push_back(missing);
+		warnings.push_back("MAF bin " + binName(mafEdges, missing) + ": no dbSNP SNVs, " + to_string(request.second.total()) + " SNVs sampled from the nearest MAF bin " + binName(mafEdges, target));
+	}
+	// second pass (only if necessary): sample the missing MAF bins from their nearest existing bin
+	if (!fallbackBins.empty()){
+		currentSNPs.clear();
+		currentGCBins.clear();
+		currentBin = -1;
+		inputFile.open(dbSNPFile);
+		while (true){
+			bool read = (bool)getline(inputFile, line, '\n');
+			if (read){
+				bin = binIndex(stod(getToken(line, '\t')), mafEdges, binwidth);
+			}
+			if (!read or bin != currentBin){
+				if (!currentSNPs.empty()){
+					for (auto& missing : fallbackBins[currentBin]){ // seeds of the missing bin (never used before)
+						sampleBin(missing, requests[missing], currentSNPs, currentGCBins, rounds, seed, output, counts);
+					}
+				}
+				currentSNPs.clear();
+				currentGCBins.clear();
+				currentBin = bin;
+			}
+			if (!read){
+				break;
+			}
+			if (fallbackBins.count(bin) > 0){
+				currentSNPs.push_back(line);
+				if (gcMatching){
+					currentGCBins.push_back(gcBinIndex(stod(line.substr(line.rfind('\t') + 1))));
+				}
+			}
+		}
+		inputFile.close();
+	}
+	for(int r = 0; r < rounds; ++r){
+		outputFile.open(SNP_files[r], std::ofstream::app);
+		outputFile << output[r];
+		outputFile.close();
+	}
+
+	// we never want to lose a SNV: each round must have as many SNVs as the input
+	for(int r = 0; r < rounds; ++r){
+		if (counts[r] != (long)MAF.size()){
+			throw runtime_error("random SNPs round " + to_string(r) + ": " + to_string(counts[r]) + " SNVs sampled, but " + to_string(MAF.size()) + " input SNVs");
 		}
 	}
-	//plot histograms for random SNPs
-	/*#pragma omp parallel for num_threads(numThreads)
-	for(int r = 0; r < rounds; ++r){
-		bc.callHistogram(histogram_files[r], outputDir +  "/histrogram_" + to_string(r) + ".pdf", sourceDir);// plot for control
-	}*/
-		
 	return SNP_files;
 }
+
 /*
-// determine random SNPs from current bin
+* samples the SNVs of one MAF bin for all rounds
+* seedBin: MAF bin that determines the seeds (differs from the bin of the lines for the MAF fallback)
+* MAF only: seed + seedBin * MAXIMAL_ROUNDS + r (as before)
+* MAF x GC: seed + (seedBin * (numGCBins + 1) + slot) * MAXIMAL_ROUNDS + r, slot = GC bin or numGCBins for MAF only
 */
-void rsIDsampler::sampleSNPs(int counter, string outputFile, vector<string>& SNPs, int seed, int size, string histogramFile){
+void rsIDsampler::sampleBin(int seedBin, Request& request, vector<string>& lines, vector<int>& lineGCBins, int rounds, int seed, vector<string>& output, vector<long>& counts){
 
-
-	mt19937 generator(seed); // seed muss fuer jeden thread ein andere sein 	
-	uniform_int_distribution<int> distribution(0, size -1); //specifiy distribution of the random number
-	int randomNum = 0; //sampled unifrom distributed number
-	string currentSNPs, helper, SNP;
-	currentSNPs.reserve(counter * 80); //80 is the expected length of a snp string 
-	helper.reserve(counter*10); //10 is the expected length of a MAF
-
-	vector<int> randomNumbers;// stores random number we already considered
-
-	for (int j = 0; j < counter; j++){
-
-		//sample random number
-		randomNum = distribution(generator); // generat random number
-//		cout << "random number: " << randomNum << endl;
-		while (find(randomNumbers.begin(), randomNumbers.end(), randomNum) != randomNumbers.end()){ //randomNum already seen
-			randomNum = distribution(generator); // generat random number
+	string mafBin = binName(mafEdges, seedBin);
+	// MAF only (MAF matching or input SNVs without GC content)
+	if (request.mafOnly > 0){
+		int seedBase = seed + (gcMatching ? (seedBin * (numGCBins + 1) + numGCBins) : seedBin) * MAXIMAL_ROUNDS;
+		if (request.mafOnly > (int)lines.size()){
+			warnings.push_back("MAF bin " + mafBin + ": " + to_string(request.mafOnly) + " SNVs needed but only " + to_string(lines.size()) + " dbSNP SNVs available, SNVs are sampled more than once");
 		}
-		randomNumbers.push_back(randomNum); //add randomNum to already used ones
-		SNP = SNPs[randomNum] + '\n';
-		currentSNPs.append(SNP);
-		helper.append("randomSNPs\t" + SNP.substr(SNP.rfind('\t')+1));
-
+		for(int r = 0; r < rounds; ++r){
+			mt19937 generator(seedBase + r);
+			sampleSNPs(request.mafOnly, lines, nullptr, generator, output[r]);
+			counts[r] += request.mafOnly;
+		}
 	}
-	//write sampled SNPs to file and to histogram file
-	ofstream output;
-	output.open(outputFile, std::ofstream::app);	
-	output << currentSNPs;
-	output.close();
-	ofstream h; 
-//	h.open(histogramFile, std::ofstream::app);
-//	h <<  helper; 
-//	h.close();
+	if (request.gc.empty()){
+		return;
+	}
+	// MAF x GC: SNVs per GC bin (dbSNP SNVs without GC content (bin 0) are never sampled)
+	vector<vector<int>> pools (numGCBins);
+	for (size_t i = 0; i < lineGCBins.size(); ++i){
+		if (lineGCBins[i] > 0){
+			pools[lineGCBins[i]].push_back(i);
+		}
+	}
+	for (auto& elem : request.gc){
+		int gcBin = elem.first, counter = elem.second;
+		int seedBase = seed + (seedBin * (numGCBins + 1) + gcBin) * MAXIMAL_ROUNDS;
+		string gcBinName = binName(gcEdges, gcBin);
+		vector<int> candidates; // GC bins to sample from: the bin itself or the nearest non-empty bins
+		if (!pools[gcBin].empty()){
+			candidates.push_back(gcBin);
+		}else{
+			for (int d = 1; d < numGCBins and candidates.empty(); ++d){
+				if (gcBin - d > 0 and !pools[gcBin - d].empty()){
+					candidates.push_back(gcBin - d);
+				}
+				if (gcBin + d < numGCBins and !pools[gcBin + d].empty()){
+					candidates.push_back(gcBin + d);
+				}
+			}
+			if (candidates.empty()){
+				warnings.push_back("MAF bin " + mafBin + ", GC bin " + gcBinName + ": no dbSNP SNV with GC content in this MAF bin, " + to_string(counter) + " SNVs sampled by MAF only");
+			}else{
+				warnings.push_back("MAF bin " + mafBin + ", GC bin " + gcBinName + ": no dbSNP SNVs, " + to_string(counter) + " SNVs sampled from the nearest GC bin" + (candidates.size() > 1 ? "s (random choice per round)" : ""));
+			}
+		}
+		for (auto& c : candidates){
+			if (counter > (int)pools[c].size()){
+				warnings.push_back("MAF bin " + mafBin + ", GC bin " + gcBinName + ": " + to_string(counter) + " SNVs needed but only " + to_string(pools[c].size()) + " dbSNP SNVs available, SNVs are sampled more than once");
+			}
+		}
+		for(int r = 0; r < rounds; ++r){
+			mt19937 generator(seedBase + r);
+			if (candidates.empty()){
+				sampleSNPs(counter, lines, nullptr, generator, output[r]);
+			}else if (candidates.size() == 1){
+				sampleSNPs(counter, lines, &pools[candidates[0]], generator, output[r]);
+			}else{
+				int choice = uniform_int_distribution<int>(0, 1)(generator);
+				sampleSNPs(counter, lines, &pools[candidates[choice]], generator, output[r]);
+			}
+			counts[r] += counter;
+		}
+	}
+	return;
 }
 
 /*
-/ splits the MAFs from the ordiginal dataset in bins and count how many entries we observed per bin
-/ return unordered map key: bin and value the count of how many MAFs lie within this bin
+* samples counter SNPs from lines (or from the lines given by the indices in pool) and appends them to output
+* without replacement if possible (same random numbers as the former implementation),
+* otherwise each SNP is taken once and the remaining ones are sampled with replacement
 */
-unordered_map<double,int> rsIDsampler::splitMAFinBins(){
+void rsIDsampler::sampleSNPs(int counter, vector<string>& lines, vector<int>* pool, mt19937& generator, string& output){
 
-	double bin = -1;
-	int counter = 0;
-	unordered_map<double,int> MAF_counter;
-	for (auto& i : MAF){
-		if (i <= bin){
-			counter++;
-		}else{
-			if (counter != 0){//we don't want to store bins with 0 entries
-				MAF_counter[bin] = counter; //store number of MAFs for the current bin
+	int size = (pool == nullptr) ? lines.size() : pool->size();
+	uniform_int_distribution<int> distribution(0, size -1); //specifiy distribution of the random number
+	int randomNum = 0; //sampled unifrom distributed number
+	output.reserve(output.size() + counter * 80); //80 is the expected length of a snp string
+
+	if (counter <= size){
+		unordered_set<int> randomNumbers;// stores random number we already considered
+		for (int j = 0; j < counter; j++){
+			randomNum = distribution(generator); // generat random number
+			while (randomNumbers.count(randomNum) > 0){ //randomNum already seen
+				randomNum = distribution(generator); // generat random number
 			}
-			counter = 0; //reset counter
-			if (bin == -1){ //set to 0 if bin was -1
-				bin = 0.0;
-			}else{
-				bin += binwidth;
-			}
-			while (i > bin){ //check if the next bin is also emty
-			//	cout << "while" << endl;
-				bin += binwidth;
-			}
-			counter++; //if i <= bin increase counter
+			randomNumbers.insert(randomNum); //add randomNum to already used ones
+			output.append(lines[(pool == nullptr) ? randomNum : (*pool)[randomNum]] + '\n');
+		}
+	}else{
+		for (int j = 0; j < size; j++){ // each SNP once
+			output.append(lines[(pool == nullptr) ? j : (*pool)[j]] + '\n');
+		}
+		for (int j = size; j < counter; j++){ // remaining ones with replacement
+			randomNum = distribution(generator);
+			output.append(lines[(pool == nullptr) ? randomNum : (*pool)[randomNum]] + '\n');
 		}
 	}
-	//add last bin 
-	if (counter != 0){
-		MAF_counter[bin] = counter;
-	}
-	return MAF_counter;
+	return;
 }
 
 /*
@@ -246,6 +478,9 @@ string rsIDsampler::getdbSNPFile(){
 }
 vector<double> rsIDsampler::getMAF(){
 	return this->MAF;
+}
+vector<string> rsIDsampler::getWarnings(){
+	return this->warnings;
 }
 
 #endif/*SAMPLERANDOMRSIDS2_HPP*/

@@ -40,13 +40,9 @@ int main(){
 	vector<double> MAF;
 	cout << "determine MAF" << endl;
 	determineMAFsForSNPs(bedFile, MAF); //read MAF distribution from input SNP file
-	cout << "before sort" << endl;
-	sort(MAF.begin(), MAF.end(), std::less<double>()); //sort MAF with default operation <
-	rsIDsampler s(0.01, pathdbSNPs, MAF, bc); //initialize snp sampler
+	rsIDsampler s(0.01, pathdbSNPs, MAF); //initialize snp sampler (splits the MAF distribution in bins)
 	cout << "after constructor" << endl;
-	unordered_map<double,int> MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
-	cout << "after maf_counter" << endl;
-	s.determineRandomSNPs(MAF_counter, "testDir", 100, 20,  1);
+	s.determineRandomSNPs("testDir", 100, 1);
 
 
 

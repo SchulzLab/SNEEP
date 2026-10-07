@@ -60,6 +60,7 @@ string forwardOrReverse(int distance_); //determines on which strand the motif b
 vector<string> parseHeader(string header, string delim); //parse the header of the fasta file
 void writeHeadersOutputFiles(bool writeOutput,  string& currentOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
 void determineMAFsForSNPs(string SNPsFile,vector<double>& MAF);
+void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<double>& GC, vector<string>& warnings);
 void determineMAFsForLeadSNPs(string SNPsFile,vector<double>& MAF, vector<string>& leadSNPs);
 string getToken(string& line, char delim);
 bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b);
@@ -480,7 +481,7 @@ int main(int argc, char *argv[]){
 
 		//initialize variables
 		vector<double> MAF;
-		unordered_map<double, int> MAF_counter;
+		vector<double> GC;
 		double pvalue = io.getPvalue(), pvalueDiff = io.getPvalueDiff();
 
 		if (io.getRandomSNPs() == ""){	
@@ -488,21 +489,38 @@ int main(int argc, char *argv[]){
 			randomDir = outputDir + "sampling";
 			bc.mkdir(randomDir, "-p" , false);
 			// new strategy: always compute proxy snps of the lead SNPs -> sample only as many SNPs as lead SNPs were available
+			vector<string> warnings;
 			//if (io.getTfBackground() == true){
-			determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
-			
+			if (io.getGCMatching()){
+				determineMAFsAndGCForSNPs(io.getSNPfastaFile(), MAF, GC, warnings); //read MAF and GC content (from the sequence) of the input SNPs
+			}else{
+				determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
+			}
+
 			//}else{ //only gene background, only sample as many random snps as lead snps
 				// TODO: this command is needed to get the lead snps
 			//determineMAFsForLeadSNPs(io.getSNPBedFile(), MAF, leadSNPs); //read MAF distribution from input SNP file
 			//}
 
-			sort(MAF.begin(), MAF.end(), std::less<double>()); //sort MAF with default operation <
-
-			rsIDsampler s(0.01, io.getdbSNPs(), MAF, bc); //initialize snp sampler
-			MAF_counter = s.splitMAFinBins(); // split original MAF distribution in bins
 			cout << "before sampling" << endl;
-		//vector<string> SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSourceDir(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
-			SNP_filenames = s.determineRandomSNPs(MAF_counter, randomDir, rounds, io.getNumberThreads(), io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+			if (io.getGCMatching()){
+				rsIDsampler s(0.01, 0.05, io.getdbSNPs(), MAF, GC); //initialize snp sampler, MAF x GC bins
+				SNP_filenames = s.determineRandomSNPs(randomDir, rounds, io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+				vector<string> samplingWarnings = s.getWarnings();
+				warnings.insert(warnings.end(), samplingWarnings.begin(), samplingWarnings.end());
+			}else{
+				rsIDsampler s(0.01, io.getdbSNPs(), MAF); //initialize snp sampler, MAF bins
+				SNP_filenames = s.determineRandomSNPs(randomDir, rounds, io.getSeed()); //ddetermine random SNPs for number of rounds based on dbSNP file
+				vector<string> samplingWarnings = s.getWarnings();
+				warnings.insert(warnings.end(), samplingWarnings.begin(), samplingWarnings.end());
+			}
+			//print warnings and store them in the info file
+			ofstream info_ = io.openFile(io.getInfoFile(), true);
+			for (auto& w : warnings){
+				cout << "WARNING: " << w << endl;
+				info_ << "WARNING background sampling: " << w << '\n';
+			}
+			info_.close();
 			cout << "after sampling" << endl;
 		}else{
 			randomDir = io.getRandomSNPs();
@@ -793,6 +811,47 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 		MAF.push_back(maf);
 	}
 	bedfile.close();
+	return;
+}
+
+/*
+/ read MAF (from the header) and GC content (from the sequence) of the input SNPs from the fasta file (snpRegions.fa)
+/ the SNP is located at position 50 of the sequence (50bp + SNP + 50bp), the GC content is determined in a window of +- GC_FLANK bp
+/ SNPs without GC content (no A, C, G, T in the window or unexpected sequence length) get GC = -1 and are sampled by MAF only
+*/
+void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<double>& GC, vector<string>& warnings){
+	string header = "", seq = "", snp = "";
+	double maf = 0.0, gc = 0.0;
+	int numN = 0, windowLength = 0;
+	ifstream fasta(fastaFile); //open fasta file
+	while (getline(fasta, header, '\n')){
+		getline(fasta, seq, '\n');
+		header = header.substr(1) + '\n'; // chr:start-end;var1;var2;rsID;MAF;...
+		snp = getToken(header, ';'); //chr:start-end
+		snp += ";" + getToken(header, ';'); //wildtype
+		snp += ";" + getToken(header, ';'); //mutant
+		snp += ";" + getToken(header, ';'); //rsID
+		try{ //throws an error when MAF is smaller than double precisoins allows -> set to 0
+			maf = stod(getToken(header, ';'));
+		}catch (const std::out_of_range& oor){
+			maf = 0.0;
+		}
+		MAF.push_back(maf);
+
+		if (seq.size() != 101){
+			gc = -1;
+			warnings.push_back("SNV " + snp + ": sequence length " + to_string(seq.size()) + " instead of 101, no GC content, sampled by MAF only");
+		}else{
+			gc = gcContent(seq, 50, GC_FLANK, numN, windowLength);
+			if (gc == -1){
+				warnings.push_back("SNV " + snp + ": GC window contains only N, no GC content, sampled by MAF only");
+			}else if (numN > windowLength / 2){
+				warnings.push_back("SNV " + snp + ": " + to_string(numN) + " of " + to_string(windowLength) + " bases of the GC window are N, GC content might not be meaningful");
+			}
+		}
+		GC.push_back(gc);
+	}
+	fasta.close();
 	return;
 }
 

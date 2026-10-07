@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cctype> //tolower
 #include <iostream> 
 #include <ostream>
 #include <fstream>
@@ -84,6 +85,7 @@ class InOutput{
 	bool getTfBackground();
 	string getTransitionMatrix();
 	string getRandomSNPs();
+	bool getGCMatching();
 
 	private: //glaube das sollte nicht private sein
 	int num_threads = 1; //-n
@@ -131,6 +133,8 @@ class InOutput{
 	bool tfBackground = false;
 	string scaleFile = "";
 	string randomSNPs = "";
+	bool gcMatching = false; //-s match GC content in the background sampling
+	string gcMatchingWarning = ""; //reason why -s is ignored
 };
 
 //construtor
@@ -146,7 +150,7 @@ InOutput::~InOutput()
 void InOutput::parseInputPara(int argc, char *argv[]){
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "o:n:p:c:b:af:mt:r:e:d:g:j:k:l:q:uvhx:i:")) != -1) {
+	while ((opt = getopt(argc, argv, "o:n:p:c:b:af:mt:r:e:d:g:j:k:l:q:uvhx:i:s:")) != -1) {
        		switch (opt) {
 		case 'o':
 			outputDir = optarg;
@@ -228,6 +232,19 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			randomSNPs = optarg;
 			cout << "-i RandomSNPs are given: " << randomSNPs << endl;	
 			break;
+		case 's':{
+			string value = optarg;
+			transform(value.begin(), value.end(), value.begin(), ::tolower);
+			if (value == "true" or value == "1"){
+				gcMatching = true;
+			}else if (value == "false" or value == "0"){
+				gcMatching = false;
+			}else{
+				throw invalid_argument("-s must be true or false (or 1 or 0): " + string(optarg));
+			}
+			cout << "-s match GC content in background sampling: " << gcMatching << endl;
+			break;
+		}
 		case 'x':
 			transition_matrix = optarg;
 			cout << "-w transition matrix: " << transition_matrix << endl;
@@ -274,6 +291,15 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	if (samplingRounds == 0 and (tfBackground ||  geneBackground)){
 		throw invalid_argument("number of backgroudn rounds -j (and dbSNP file -k) musst be specificed\n for help use -h"); 
 	}
+	if (gcMatching and randomSNPs != ""){ // no sampling, the random SNPs are given
+		gcMatchingWarning = "-s is ignored, since the random SNPs are given with -i";
+	}else if (gcMatching and samplingRounds == 0){
+		gcMatchingWarning = "-s is ignored, since no background sampling is performed (-j)";
+	}
+	if (gcMatchingWarning != ""){
+		gcMatching = false;
+		cout << "WARNING: " << gcMatchingWarning << endl;
+	}
 
 	PFMs = argv[optind++];
 	cout <<"PFM dir: " << PFMs << endl;	
@@ -314,6 +340,7 @@ ostream& operator<< (ostream& os, InOutput& io){
 	"\n#\t-k path to dbSNPs: " << io.dbSNPs <<
 	"\n#\t-l start seed for random sampling: " << io.seed <<
 	"\n#\t-q min TF count: " << io.minTFCount << 
+	"\n#\t-s match GC content in background sampling: " << io.gcMatching << (io.gcMatchingWarning != "" ? " (WARNING: " + io.gcMatchingWarning + ")" : "") << 
 	"\n#\t-u perform gene background analysis: " << io.geneBackground <<	
 	"\n#\t-v perform TF enrichment  analysis: " << io.tfBackground <<	
 	"\n#\t-x transition matrix for binding affinity p-value: " << io.transition_matrix <<	
@@ -564,10 +591,11 @@ void InOutput::callHelp(){
 	"-r bed-like file with epigenetic interactions\n"<<
 	"-g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
 	"-j rounds sampled background (default 0)\n"
-	"-k path to sorted dbSNP file (if our provided file is used only SNPs in coding regions are considered)\n"
+	"-k path to sorted dbSNP file\n"
 	//"-i path to the source GitHub dir (default .)\n"<<
 	"-l start seed (default 1)\n" <<
 	"-q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)\n" << 
+	"-s true or false, match the GC content (+- 30bp around the SNV) in addition to the MAF in the random sampling, requires a dbSNP file with GC content (-k) (default false)\n" <<
 	"-u gene background analysis is performed (defaul false), -j must be set \n" <<
 	"-v perform TF enrichment  analysis (default  false), -j must be set\n" <<	
 	"-x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)" <<
@@ -1033,5 +1061,8 @@ string InOutput::getTransitionMatrix(){
 }
 string InOutput::getRandomSNPs(){
 	return this->randomSNPs;
+}
+bool InOutput::getGCMatching(){
+	return this->gcMatching;
 }
 #endif/*HANDLEINOUTPUT_HPP*/
