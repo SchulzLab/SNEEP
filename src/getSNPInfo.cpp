@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "callBashCommand.hpp"
+#include "stringUtils.hpp"
 
 using namespace std;
 //using json = nlohmann::json;
@@ -22,15 +23,14 @@ using namespace std;
 const int GC_FLANK = 30;
 
 //functions
-string getToken(string& line, char delim);
 string checkLength(string line);
 void computeGCContent(string dbSNPBed, string genome, string gcDir, int numThreads, BashCommand& bc);
 string nextGCContent(unordered_map<string, unique_ptr<ifstream>>& gcFiles, string gcDir, string chr, long lineNumber);
 
 
 /*
-* Input: - dbSNP file (GCF file downloaded from https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) ## stand 01.09.2023 release 156, the old version was release dbSNP 154 -> achtung gibts in hg38 und hg19 (see readme)
-* 	## stand 26.02.2026 downloaded newest release dbSNP 157 -> without excluding SNVs overlapping with coding regions
+* Input: - dbSNP file (GCF file downloaded from https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/) ## as of 01.09.2023: release 156, the old version was release dbSNP 154 -> note: available for hg38 and hg19 (see readme)
+* 	## as of 26.02.2026: downloaded newest release dbSNP 157 -> without excluding SNVs overlapping with coding regions
 *        - output dir
 *	 - genome file (fasta, hg38), the index <genome>.fai must exist (samtools faidx <genome>)
 *	 - number of threads (optional, default 1), used to compute the GC content of the chromosomes in parallel
@@ -241,22 +241,6 @@ string nextGCContent(unordered_map<string, unique_ptr<ifstream>>& gcFiles, strin
 }
 
 
-/*
-* Input: line for istance from a file, and a delim like '/t'
-* 
-* returns the new element until the delim symbol and cuts the element from the inpit line
-*/
-string getToken(string& line, char delim){
-	int pos = 0;
-	//cout << line << " " << line.find(delim) << endl;
-	if(((pos = line.find(delim)) != std::string::npos) || ((pos = line.find('\n')) != std::string::npos)){
-    		string token = line.substr(0, pos);
-    		line.erase(0, pos + 1);
-		return token;
-	}else{
-		throw invalid_argument ("invalid file format:" + line);
-	}
-}
 
 /*
 * Input: ref or alt string
@@ -277,7 +261,6 @@ string checkLength(string line){
 			//	return (false);
 			//}
 			//if (helper == "N" || helper == "n"){
-			//	cout << "es gibt SNPs mit N" << endl;
 			//	return (false);
 			//}
 			if (helper == "A" || helper == "C" || helper == "G" || helper == "T"){
@@ -307,9 +290,8 @@ string checkLength(string line){
 			result = "NO";
 		//	return(false);
 		}
-		//TODO: muss man auch für - prüfen?
+		//TODO: also check for "-"?
 		//if (line == "-"){
-		//	cout << "ja muss man" << endl;
 		//}
 		if (line == "A" || line == "C" || line == "G" || line == "T"){
 			result = line;

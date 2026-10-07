@@ -1,0 +1,2 @@
+SNP_position	var1	var2	rsID	MAF	peakPosition	TF	TF-binding_position	strand	effectedPositionInMotif	pvalue_BindAff_var1	pvalue_BindAff_var2	log_pvalueBindAffVar1_pvalueBindAffVar2	pvalue_DiffBindAff	REM_positions	ensemblIDs	geneNames	REMIds	coefficients	pvalues_REM	normModelScore	meanDNase1Signal	stdDNase1Signal	consortium
+chr2:632-633	G	C	rs2632	0.0497	.	CTCF(MA0139.1)	chr2:620-639	(f)	13	0.002277	0.029753	-2.570121	5.675654e-03	chr2:200-15000	ENSG00000000006.1	GENE6	REM0000006	0.876	6.97e-03	.	.	.	-

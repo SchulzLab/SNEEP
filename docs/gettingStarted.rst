@@ -40,12 +40,26 @@ To build SNEEP, the following commands are used:
   make
 
 
-Please add the path to our software (SNEEP/src) to our PATH environment (otherwise, internally called scrips might not be found).
+Please add the path to our software (SNEEP/src) to our PATH environment (otherwise, internally called scrips might not be found). The internally called Python scripts are run with python3. If an internally called tool or script (bedtools, python3) is not found or fails, SNEEP stops with an error message naming the failed command.
 
 We tested the code and the Makefile only on a Linux machine. 
 
 Testing your installation 
 ==========================
+
+Quick test without additional data
+-----------------------------------
+
+The directory tests/ contains small regression tests that run within a few seconds and need no data from Zenodo (only a C++11 compiler, bedtools and python3). They build SNEEP from src/, run it on a small synthetic data set and compare the output with stored reference outputs:
+
+.. code-block:: console
+
+  bash tests/runRegressionTests.sh
+
+The script prints PASSED or lists the files that differ. Details are given in tests/README.md.
+
+Test with the example data
+---------------------------
 
 We provide a test script to verify if your installation worked. To download the test data and scripts, please clone the latest version of our GitHub repository (if not already done) 
 
@@ -105,29 +119,33 @@ The required bedlike SNP file is a tab-separated file containing the following e
 -	chr,
 -	start position (0-based),
 -	end position (0-based),
--	var1 (e.g., effector allele or alternative allele) ,
--	var2 (e.g., wildtype allele),
+-	var1: wildtype allele (usually the reference allele),
+-	var2: alternative allele (e.g., the effect allele),
 -	rsID if known; otherwise - ,
 -	minor allele frequency (MAF) if known, otherwise -1. The minor allele frequency is important to provide if you want to assess the result of SNEEP against random controls. Then, SNEEP samples SNPs based on the MAF distribution of the input SNPs. 
+
+The alleles (var1, var2) must be given for the plus (forward) strand of the reference genome, and the coordinates must be 0-based and refer to the same genome build as the genome file. As in our publication, the sequence with var1 (wildtype allele) is compared to the sequence with var2 (alternative allele), i.e., a positive differential TF binding score means that var2 may lead to a gain and a negative score to a loss of a TF binding site (see `SNEEP result files <https://sneep.readthedocs.io/en/latest/results.html>`_). For a VCF file, var1 is the REF and var2 the ALT allele. SNEEP inserts var1 and var2 at the SNP position of the plus-strand sequence; alleles given for the minus strand therefore lead to wrong sequences and wrong binding scores. SNEEP cannot detect alleles on the wrong strand: for a SNP like A/G, the two alleles and their complements (T/C) cover all four bases, so a SNP on the minus strand looks the same as a SNP at a wrong position. Please make sure that all SNPs are given for the plus strand.
+
+SNEEP checks whether var1 or var2 matches the base of the reference genome at the SNP position. SNPs for which neither allele matches are listed in info.txt and counted on the console; they are still analyzed. If this applies to more than 5% of the SNPs, SNEEP warns that the coordinates (0-based), the genome build or the strand of the alleles might be wrong (with shifted coordinates, about half of the SNPs do not match).
 
 An example of a properly formated SNP file can be found below: 
 
 .. code-block:: console
 
-  chr1    109274569       109274570       G       A       rs7528419       0.2009
+  chr1    109274569       109274570       A       G       rs7528419       0.2009
   chr1    109275907       109275908       C       T       rs646776        0.2384
-  chr1    154424939       154424940       G       T       rs12118721      1e-07
-  chr1    154424939       154424940       G       T       -      0.3
-  chr12   111569951       111569952       G       C       rs653178        -1
+  chr1    154424939       154424940       T       G       rs12118721      1e-07
+  chr1    154424939       154424940       T       G       -      0.3
+  chr12   111569951       111569952       C       G       rs653178        -1
 
 
 If you want to consider a SNP, that has multiple alternative alleles, such as for instance `rs11206510 <https://www.ncbi.nlm.nih.gov/snp/rs11206510>`_ (T -> A,C,G) , please add one line per alternative allele to the bedlike SNP file. An example is shown below: 
 
 .. code-block:: console
 
-  chr1    55030365        55030366        A       T       rs11206510      0.1018
-  chr1    55030365        55030366        C       T       rs11206510      0.1018
-  chr1    55030365        55030366        G       T       rs11206510      0.1018
+  chr1    55030365        55030366        T       A       rs11206510      0.1018
+  chr1    55030365        55030366        T       C       rs11206510      0.1018
+  chr1    55030365        55030366        T       G       rs11206510      0.1018
 
 Instead of the bedlike formated SNP file also a VCF can be given as input (ending with .vcf or .VCF). For more details of the file format, see `here <https://www.internationalgenome.org/wiki/Analysis/Variant%20Call%20Format/vcf-variant-call-format-version-40/>`_. We expect the first 8 columns to be given, where QUAL and FILTER can be set as ".". If the rsID or the MAF is not known it is als set to ".". An example is shown below: 
 

@@ -11,13 +11,17 @@
 #include <unistd.h>
 #include <ctime> //for time
 #include <chrono> //for time
-#include <getopt.h> //einlesen der argumente
+#include <getopt.h> //parse the command line arguments
 #include <unordered_map>
 #include <unordered_set>
 #include <random>
 
 // include own functions
 #include "callBashCommand.hpp"
+#include "stringUtils.hpp"
+
+// number of bases on each side of the SNV in the extracted sequences (sequence = SNV_FLANK bp + SNV + SNV_FLANK bp, SNV at index SNV_FLANK)
+const int SNV_FLANK = 50;
 
 using namespace std;
 
@@ -26,7 +30,7 @@ class InOutput{
 	public: 
 	//Constructor
 	InOutput();
-	//Deconstructor
+	//Destructor
 	~InOutput();
 	
 	//functions
@@ -34,13 +38,13 @@ class InOutput{
 	friend ostream& operator<< (ostream& os, InOutput& io);
 	ofstream openFile(string path, bool app);
 	void parseSNPsBedfile(string inputFile, int number);
-	string getToken(string& line, char delim);
 	void callHelp();
 	int CountEntriesFirstLine(string inputFile, char delim);
 	void checkIfSNPsAreUnique();
 	void parseRandomSNPs(string inputFile, string REMsOverlappFile, string outputFile, int seed);
+	unordered_map<string, vector<string>> readOverlappingREMs(string overlapFile);
+	string remColumns(unordered_map<string, vector<string>>& infoREMs, const string& key, int numREMFields);
 	void readScaleValues(string scaleFile, unordered_map<string, double>& scales);
-	void getInfoSNPs(vector<string>& leadSNPs, unordered_map<string, vector<string>>& proxySNPs);
 	void checkUniqAgain();
 	int getNumberSNPs(string inputFile);
 	void fileFormatVCF();
@@ -74,9 +78,6 @@ class InOutput{
 	string getGenome();
 	string getdbSNPs();
 	int getRounds();
-	string getCodingRegions();
-	int getConsideredSNPs();
-	string getBackgroundSequences();
 	int getNumberThreads();
 	int getSeed();
 	int getMinTFCount();
@@ -87,14 +88,15 @@ class InOutput{
 	string getRandomSNPs();
 	bool getGCMatching();
 
-	private: //glaube das sollte nicht private sein
+	private:
 	int num_threads = 1; //-n
 	double pvalue = 0.5; //-p	
 	double pvalue_diff = 0.01; //-c
 	string frequence = ""; //-b
 	string footprint = ""; //-f path to footprint file
 	string outputDir = "SNEEP_output/"; //-o
-	string allOutput =  ""; //-d 
+	string allOutput =  ""; //-a 
+	bool writeAllOutput = false; //-a, the path is set after parsing all arguments (depends on -o)
 	bool maxOutput =  false; // -m
 	//new
 	string activeTFs = ""; // -t path to geneExpression file
@@ -124,8 +126,6 @@ class InOutput{
 	string genome = "";
 	int samplingRounds = 0;
 	//string codingRegions = "";
-	int consideredSNPs  = 0;
-	string backgroundSeq = "";
 	string dbSNPs = "";
 	int seed = 1;
 	int minTFCount = 0;
@@ -142,9 +142,36 @@ InOutput::InOutput()
 {
 //	cout << "constructor" << endl;
 }
-//deconstructor
+//destructor
 InOutput::~InOutput()
 {
+}
+
+/*
+* value of a flag as int / double; the whole value must be a number, otherwise a clear error is thrown
+*/
+int toInt(const string& value, char flag){
+	try{
+		size_t pos = 0;
+		int result = stoi(value, &pos);
+		if (pos == value.size()){
+			return result;
+		}
+	}catch (const exception& e){
+	}
+	throw invalid_argument("invalid value for -" + string(1, flag) + ": " + value + " (integer expected)");
+}
+
+double toDouble(const string& value, char flag){
+	try{
+		size_t pos = 0;
+		double result = stod(value, &pos);
+		if (pos == value.size()){
+			return result;
+		}
+	}catch (const exception& e){
+	}
+	throw invalid_argument("invalid value for -" + string(1, flag) + ": " + value + " (number expected)");
 }
 
 void InOutput::parseInputPara(int argc, char *argv[]){
@@ -157,15 +184,15 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			cout << "-o outputDir: " << outputDir << endl;
 			break;
 		case 'n':
-			num_threads = stoi(optarg);
-			cout << "-t number threads " << num_threads << endl;
+			num_threads = toInt(optarg, 'n');
+			cout << "-n number threads: " << num_threads << endl;
 			break;
 		case 'p':
-			pvalue = stod(optarg);
+			pvalue = toDouble(optarg, 'p');
 			cout << "-p use pvalue: " << pvalue <<  endl;
 			break;
 		case 'c':
-			pvalue_diff = stod(optarg);
+			pvalue_diff = toDouble(optarg, 'c');
 			cout << "-c use pvalue_diff: " << pvalue_diff <<  endl;
 			break;
 		case 'b':
@@ -173,8 +200,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			cout << "-b frequency: " << frequence << endl;
 			break;
 		case 'a':
-			allOutput = outputDir + "AllDiffBindAffinity.txt";
-			cout << "-a AllDiffBindAff: " << allOutput << endl;
+			writeAllOutput = true;
 			break;
 		case 'f':
 			footprint = optarg;
@@ -197,7 +223,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			cout << "-e ensemble_geneName: " << ensembleGeneName << endl;
 			break;
 		case 'd':
-			thresholdTFActivity = stod(optarg);
+			thresholdTFActivity = toDouble(optarg, 'd');
 			cout << "-d threshold TF activity: " << thresholdTFActivity << endl;
 			break;
 		case 'g':
@@ -205,11 +231,11 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			cout << "-g ensemblID to GeneName mapping: " << mappingGeneNames << endl;
 			break;
 		case 'l':
-			seed = stoi(optarg);
+			seed = toInt(optarg, 'l');
 			cout << "-l seed: " << seed << endl;
 			break;
 		case 'j':
-			samplingRounds = stoi(optarg);
+			samplingRounds = toInt(optarg, 'j');
 			cout << "-j number of randmoly sampled backgrounds: " << samplingRounds << endl;
 			break;
 		case 'k':
@@ -217,7 +243,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			cout << "-k path to dbSNPs: " << dbSNPs << endl;
 			break;
 		case 'q':
-			minTFCount = stoi(optarg);
+			minTFCount = toInt(optarg, 'q');
 			cout << "-q min TF count: " << minTFCount << endl;	
 			break;
 		case 'u':
@@ -247,7 +273,7 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 		}
 		case 'x':
 			transition_matrix = optarg;
-			cout << "-w transition matrix: " << transition_matrix << endl;
+			cout << "-x transition matrix: " << transition_matrix << endl;
 			break;
 		case 'h':
 			callHelp();
@@ -255,10 +281,21 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 			//break;
 
 		default:
-			throw invalid_argument("invalid input parameter");
+			throw invalid_argument("invalid input parameter, for help use -h");
         	}
     	}
 
+	// all output paths are set after parsing, so -o can be given at any position and with or without a final /
+	if (outputDir.empty()){
+		outputDir = "./";
+	}
+	if (outputDir.back() != '/'){
+		outputDir += '/';
+	}
+	if (writeAllOutput){
+		allOutput = outputDir + "AllDiffBindAffinity.txt";
+		cout << "-a AllDiffBindAff: " << allOutput << endl;
+	}
 	fasta = outputDir + "snpRegions.fa"; //stores fasta seq of snps
 	bed = outputDir + "snpRegions.bed"; //bed file snps 
 	bed_notUniq = outputDir + "snpsRegions_notUniq.bed"; // bed file but noy uniq 
@@ -277,19 +314,25 @@ void InOutput::parseInputPara(int argc, char *argv[]){
 	if (REMs != ""){
 		overlappingREMs = outputDir + "SNPsOverlappingREMs.bed";
 	}
-	if (samplingRounds > 0){
-		backgroundSeq = outputDir + "backgroundSequences.bed";
-	}
 	if (optind + 4 > argc)  // there should be 4 more non-option arguments
 		throw invalid_argument("missing motif file in TRANSFAC format, bed-like SNP file, genome file and/or scaleFile \n for help use  -h"); // TODO: besser in motif file umwandeln
-	if (samplingRounds > 0 and dbSNPs.length() == 0){
+	if (REMs != ""){ // the REM columns of result.txt are fixed (see header), so the interaction file needs exactly 12 columns
+		if (!ifstream(REMs)){
+			throw invalid_argument("cannot open interaction file (-r): " + REMs);
+		}
+		int columns = CountEntriesFirstLine(REMs, '\t');
+		if (columns != 12){
+			throw invalid_argument("the interaction file (-r) " + REMs + " has " + to_string(columns) + " columns, but 12 tab-separated columns are expected (chr, start, end, ensemblID, regionID and 7 further columns, '.' or '-' if not available)");
+		}
+	}
+	if (samplingRounds > 0 and dbSNPs.length() == 0 and randomSNPs.length() == 0){
 		throw invalid_argument("for a background analysis the path to the sorted dbSNP file is requiered\n for help use -h"); // both parameters need to be set
 	}
 	if (activeTFs.length() > 0 and (thresholdTFActivity == 0.0  or ensembleGeneName.length() == 0 )){
 		throw invalid_argument("either -d or -e is not set but requiered\n for help -h"); 
 	} 
 	if (samplingRounds == 0 and (tfBackground ||  geneBackground)){
-		throw invalid_argument("number of backgroudn rounds -j (and dbSNP file -k) musst be specificed\n for help use -h"); 
+		throw invalid_argument("number of background rounds -j (and dbSNP file -k) must be specified\n for help use -h"); 
 	}
 	if (gcMatching and randomSNPs != ""){ // no sampling, the random SNPs are given
 		gcMatchingWarning = "-s is ignored, since the random SNPs are given with -i";
@@ -413,71 +456,15 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	ofstream info_ = openFile(getInfoFile(), true);
 
 	ifstream input(inputFile); //either overlappingPeak file or snpFile
-	bool REMs = false;
-	unordered_map<string, vector<string>> infoREMs; //chr:start:end_var1_var2 -> chr:start-end of REM, linked gene ensembl id, gene name, activity, coefficient
+	bool REMs = (getREMs() != "");
+	unordered_map<string, vector<string>> infoREMs; //chr:start-end_var1_var2 -> REM info (see readOverlappingREMs)
+	int numREMFields = 0;
 	char delim = '\t';
-	int start = 0, end = 0, pos = 0;
-	string chr = "", var1 = "", var2 = "", token = "", line = "", ensembl = ""; //stores current line
-	if (getREMs() != ""){
-		REMs = true;
-		ifstream overlappingREMs(getOverlappingREMs());
-		int entries = CountEntriesFirstLine(getREMs(),'\t');
-		//read mapping ensembl id -> gene Name
-		unordered_map<string, string> mappingGeneNames;
-		ifstream mapping(getMappingGeneNames());
-		while (getline(mapping, line, '\n')){
-			ensembl = getToken(line, ',');
-			mappingGeneNames[ensembl] = line;
-		} 
-		while (getline(overlappingREMs, line, '\n')){
-			line = line + '\n';
-			vector<string> helper; //stores info per line
-			string chr = getToken(line, delim);
-			string start = getToken(line, delim);
-			string end = getToken(line, delim);
-			string comb = chr + ":" + start + "-" + end;
-//			cout << "comb: " << comb << endl;
-			helper.push_back(comb);
-			for (int i = 3; i <= entries-1; ++i){ //read only entries REMs
-				pos = line.find(delim);
-				var2 = line.substr(0, pos);
-				helper.push_back(var2); //REM,ensembl id, geneName,  REMid,coefficient,pvalue, normModelScore, meanDNase1Signal, stdDNase1Signal,consortium, version
-				if (i == 3){//determine gene name
-					helper.push_back(mappingGeneNames[var2]);
-				}
-				line.erase(0, pos + 1);
-			}
-		/*	for(auto& elem : helper){
-				cout << elem << " ";
-			}
-			cout << "\n";*/
-			//read SNP Info
-			chr =  getToken(line,delim);
-			start =  getToken(line,delim);
-			end =  getToken(line,delim);
-			string var1 =  getToken(line,delim);
-			string var2 =  getToken(line,delim);
-			//string id = getToken(line,delim);
-			//string MAF = getToken(line,delim);
-			string key = chr + ":" + start + "-" + end + "_" + var1 + "_" + var2;
-			//cout << "key REMs: " << key << endl;
-
-			if (infoREMs.count(key)>0){ //key exists
-				vector<string> existingInfo = infoREMs[key];
-				for(int i = 0; i < existingInfo.size(); ++i){ //add new info to existing entries
-					existingInfo[i] = existingInfo[i] + "," + helper[i]; 
-				}
-			/*	cout << "existing Info" << endl;
-				for(auto& elem : existingInfo){
-					cout << elem << " ";
-				}
-				cout << "\n"; */
-				infoREMs[key] = existingInfo; //update key info
-			}else{
-				infoREMs[key] = helper;
-			}
-		}
-		overlappingREMs.close();
+	int start = 0, end = 0;
+	string chr = "", var1 = "", var2 = "", line = ""; //stores current line
+	if (REMs){
+		infoREMs = readOverlappingREMs(getOverlappingREMs());
+		numREMFields = CountEntriesFirstLine(getREMs(),'\t') - 1; // REM position, gene name and all columns of the interaction file after start and end
 	}
 	ofstream output(bed_notUniq);
 	ofstream output2(getBedFileInDels());//store InDels
@@ -490,9 +477,9 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		//extract information
 		chr = getToken(line, delim);
 		//cout << "chr: " << chr << endl;
-		start = stoi(getToken(line, delim)) - 50;
+		start = stoi(getToken(line, delim)) - SNV_FLANK;
 		//cout << "start: " << start << endl;
-		end = stoi(getToken(line, delim)) + 50;
+		end = stoi(getToken(line, delim)) + SNV_FLANK;
 		//cout << "end: " << end << endl;
 		var1 = getToken(line, delim);
 		///cout << "var1: " << var1 << endl;
@@ -500,18 +487,14 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 		id = getToken(line,delim);
 		MAF = getToken(line,delim);
 		//cout << "var2: " << var2 << endl;
-		string key = chr + ":" + to_string(start+50) + "-" + to_string(end-50) + "_" + var1 + "_" + var2;
+		string key = chr + ":" + to_string(start+SNV_FLANK) + "-" + to_string(end-SNV_FLANK) + "_" + var1 + "_" + var2;
 		//cout << "key: " << key << endl;
 		if ((var1 != "*") and (var2 != "*") and (var1.length() == 1) and (var2.length() == 1)){ 
 			counterOverlappingPeaks++;
-			output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+50) << "-"<< to_string(end-50) << ";" << var1 << ";" << var2 << ";" << id << ";" << MAF;// << '\t' << var1<< '\t' <<  var2 << '\n';
+			output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+SNV_FLANK) << "-"<< to_string(end-SNV_FLANK) << ";" << var1 << ";" << var2 << ";" << id << ";" << MAF;// << '\t' << var1<< '\t' <<  var2 << '\n';
 			//store skipped entries as header of the fasta file
 			if (getOverlappingFootprints() == inputFile){
 				vector<string> entriesLine;
-				/*for(int i = 5; i <= entriesSNPFile-1; ++i){ //skip entries which are not important
-					pos = line.find(delim);
-					line.erase(0, pos + 1);
-				}*/
 				//read peak info
 	//			cout << line << endl;
 	//			cout << "raed peak info before" << endl;
@@ -522,19 +505,10 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 			}
 			// add REM info
 			if (REMs){
-				if (infoREMs.count(key) == 0){
-					output << ";.;.;.;.;.;.;.;.;.;.;."; 
-					//fuer dennis Hi-c file
-					//output << ";.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;."; 
-				}else{
+				if (infoREMs.count(key) > 0){
 					counterOverlappingREMs++;
-					vector<string> helper = infoREMs[key];
-					for(auto& elem : helper){
-				//		cout << elem << " ";
-						output <<  ";" << elem;
-					}
-					//cout << '\n';
 				}
+				output << remColumns(infoREMs, key, numREMFields);
 			}
 			output << '\n';
 	
@@ -547,7 +521,6 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	}else{
 		info_ << "!\toverlapPeak: -\n"; //info file
 	}
-	consideredSNPs = counterOverlappingPeaks;
 //	cout << "peaks considered: " << consideredSNPs << endl;
 
 	if (getREMs() != ""){
@@ -562,43 +535,31 @@ void InOutput::parseSNPsBedfile(string inputFile, int entriesSNPFile){
 	return;
 }
 
-string InOutput::getToken(string& line, char delim){
-	int pos = 0;
-	//cout << line.find(delim) << endl;
-	if(((pos = line.find(delim)) != std::string::npos) || ((pos = line.find('\n')) != std::string::npos)){
-    		string token = line.substr(0, pos);
-    		line.erase(0, pos + 1);
-		return token;
-	}else{
-		throw invalid_argument ("invalid file format:" + line);
-	}
-}
-
 void InOutput::callHelp(){
 
-	cout << "Call program with ./src/differentialBindingAffinity_multipleSNPs\noptinal parameters:\n" << 
-	"-o outputDir (default SNEEP_output/, if you want to specific it, it must be done as first argument)\n" <<
+	cout << "Call program with ./src/differentialBindingAffinity_multipleSNPs\noptional parameters:\n" << 
+	"-o outputDir (default SNEEP_output/); must be empty or contain a former SNEEP output (info.txt), which is deleted\n" <<
 	"-n number threads (default 1)\n" <<
 	"-p pvalue for motif hits (default 0.5)\n"<<
 	"-c pvalue differential binding (default 0.01)\n" <<
 	"-b base frequency for PFMs -> PWMs ( /necessaryInputFiles/frequency.txt)\n" <<
-	"-a if flag is set,  all computed differential bindinding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
+	"-a if flag is set,  all computed differential binding affinities are stored in <outputDir>/AllDiffBindAffinity.txt\n"<<
 	"-f additional footprint/open chromatin region file in bed file format\n" <<
 	"-m if flag is set, the  maximal differential binding affinity per SNP is printed\n"<<
-	"-t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID\texpression-value)\n" <<
+	"-t file where expression values of TFs are stored (e.g RNA-seq in a tab-separated format e.g. ensemblID\texpression-value)\n" <<
 	"-d threshold TF activity (must be given if -t is given)\n"<<
-	"-e tab-seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)\n"<<
+	"-e tab-separated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)\n"<<
 	"-r bed-like file with epigenetic interactions\n"<<
-	"-g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)\n" <<
-	"-j rounds sampled background (default 0)\n"
-	"-k path to sorted dbSNP file\n"
-	//"-i path to the source GitHub dir (default .)\n"<<
+	"-g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-separated)(mapping for all genes within EpiRegio)\n" <<
+	"-j rounds sampled background (default 0)\n" <<
+	"-k path to sorted dbSNP file (required for -j, unless -i is given)\n" <<
+	"-i directory with already sampled random SNPs (randomSNPs_<round>.txt, e.g. sampling/ of a former run), used instead of sampling them (-j must be set)\n" <<
 	"-l start seed (default 1)\n" <<
 	"-q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)\n" << 
 	"-s true or false, match the GC content (+- 30bp around the SNV) in addition to the MAF in the random sampling, requires a dbSNP file with GC content (-k) (default false)\n" <<
-	"-u gene background analysis is performed (defaul false), -j must be set \n" <<
+	"-u gene background analysis is performed (default false), -j must be set \n" <<
 	"-v perform TF enrichment  analysis (default  false), -j must be set\n" <<	
-	"-x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)" <<
+	"-x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)\n" <<
 	"-h help\n" <<
 	"transfac PFM file,  bed-like SNP file, path to genome file (fasta format) and scale file (see necessaryInputFiles/estimatedScalesPerMotif_1.9.txt for human data)  must be given"<<endl;
 }
@@ -618,76 +579,6 @@ int InOutput::CountEntriesFirstLine(string inputFile, char delim){
 	entries++;
 	//cout << "entries: " << entries << endl;
 	return entries;
-}
-
-void InOutput::getInfoSNPs(vector<string>& leadSNPs, unordered_map<string,vector<string>>& proxySNPs){
-
-	ifstream input(snps); //open file
-	string chr, start, end, allele1, allele2, rsID, maf, info, line, helper;
-	//read file
-	char delim = '\t';	
-	string snp = "";
-	int counter = 0;
-	int c = 0;
-	//vector<string> c_m;
-	while (getline(input, line, '\n')){
-		//cout << line << endl;
-		chr =  getToken(line,delim);
-		start =  getToken(line,delim);
-		end =  getToken(line,delim);
-		allele1 =  getToken(line,delim);
-		allele2 =  getToken(line,delim);
-		rsID =  getToken(line,delim);
-		maf =  getToken(line,delim);
-		info =  line;
-		//if (rsID == "."){
-		//	cout << chr << " " << start << " " << end <<  " " << rsID << endl;
-		//}
-		
-		snp = chr + ":" + start + "-" + end + '\t' + allele1 + '\t' + allele2 + '\t' + rsID + '\t' + maf;
-		
-		if (info =="-"){ //identified lead snp
-			leadSNPs.push_back(snp);
-
-			//if (maf != "-"){
-			//	c_m.push_back(rsID);
-			//}
-		}
-
-		// store per lead snp the proxy snps
-		
-		else{ // the snp is a proxySNP
-		// is there more than one lead SNPs associated to the current SNP?
-			counter = count(info.begin(), info.end(), ',');
-			c += counter;
-			//cout << counter << " " << info << endl;
-			//cout << counter << endl;
-			for (int i=0; i<counter; ++i){
-				//cout << i << endl;
-				// split and add rsID
-				helper = getToken(info, ',');
-				if (proxySNPs.find(helper) != proxySNPs.end()){ // lead snp is already in map
-					vector<string> a = proxySNPs[helper]; // add proxy SNPs to all lead SNPs
-					a.push_back(rsID);
-					proxySNPs[helper] = a;
-
-				}else{
-					vector<string> a {rsID};
-					proxySNPs[helper] = a;
-				}
-			}
-			//last rsID or of no , is found
-			if (proxySNPs.find(info) != proxySNPs.end()){ // lead snp is already in map
-				vector<string> a = proxySNPs[info]; // add proxy SNPs to all lead SNPs
-				a.push_back(rsID);
-				proxySNPs[info] = a;
-
-			}else{
-				vector<string> a {rsID};
-				proxySNPs[info] = a;
-			}
-		}
-	}
 }
 
 // check if snps are still uniq after intersection with REMs or footprints
@@ -746,7 +637,7 @@ void InOutput::checkIfSNPsAreUnique(){
 			if (current_pos == previous_pos){ // only if the positions are the same check if alleles are the same
 				string alleles = a1 + "-" + a2;
 
-				if (count(seen_alleles.begin(), seen_alleles.end(), alleles) == 0){
+				if (seen_alleles.count(alleles) == 0){
 					//SNPs.push_back(helper);
 					seen_alleles.insert(alleles);
 					output << originalLine << '\n';
@@ -755,6 +646,7 @@ void InOutput::checkIfSNPsAreUnique(){
 			}else{
 				previous_pos = current_pos;
 				seen_alleles.clear();
+				seen_alleles.insert(a1 + "-" + a2); // alleles of the first line at this position (otherwise one duplicate is kept)
 				output << originalLine << '\n';
 				counterUnique++;
 			}
@@ -779,93 +671,33 @@ void InOutput::parseRandomSNPs(string inputFile, string REMsOverlappFile, string
 //	ofstream info_ = openFile(getInfoFile(), true);
 
 	ifstream input(inputFile); //either overlappingPeak file or snpFile
-	bool REMs = false;
-	unordered_map<string, vector<string>> infoREMs; //chr:start:end_var1_var2 -> chr:start-end of REM, linked gene ensembl id, gene name, activity, coefficient
+	bool REMs = (getREMs() != "");
+	unordered_map<string, vector<string>> infoREMs; //chr:start-end_var1_var2 -> REM info (see readOverlappingREMs)
+	int numREMFields = 0;
 	char delim = '\t';
-	int start = 0, end = 0, pos = 0;
-	string chr = "", var1 = "", var2 = "", token = "", line = "", ensembl = ""; //stores current line
-	//cout << "before doing anything" << endl;
-	if (getREMs() != ""){
-		int entries = 12; //TODO: stimmt das?
-		REMs = true;
-		ifstream overlappingREMs(REMsOverlappFile);
-		//int entries = CountEntriesFirstLine(getREMs(),'\t');
-		//read mapping ensembl id -> gene Name
-		unordered_map<string, string> mappingGeneNames;
-		ifstream mapping(getMappingGeneNames());
-		while (getline(mapping, line, '\n')){
-			ensembl = getToken(line, ',');
-			mappingGeneNames[ensembl] = line;
-		} 
-		while (getline(overlappingREMs, line, '\n')){
-			line = line + '\n';
-			vector<string> helper; //stores info per line
-			string chr = getToken(line, delim);
-			string start = getToken(line, delim);
-			string end = getToken(line, delim);
-			string comb = chr + ":" + start + "-" + end;
-//			cout << "comb: " << comb << endl;
-			helper.push_back(comb);
-			for (int i = 3; i <= entries-1; ++i){ //read only entries REMs
-				pos = line.find(delim);
-				var2 = line.substr(0, pos);
-				helper.push_back(var2); //REM,ensembl id, geneName,  REMid,coefficient,pvalue, normModelScore, meanDNase1Signal, stdDNase1Signal,consortium, version
-				if (i == 3){//determine gene name
-					helper.push_back(mappingGeneNames[var2]);
-				}
-				line.erase(0, pos + 1);
-			}
-		/*	for(auto& elem : helper){
-				cout << elem << " ";
-			}
-			cout << "\n";*/
-			//read SNP Info
-			chr =  getToken(line,delim);
-			start =  getToken(line,delim);
-			end =  getToken(line,delim);
-			string var1 =  getToken(line,delim);
-			string var2 =  getToken(line,delim);
-			//string id = getToken(line,delim);
-			//string MAF = getToken(line,delim);
-			string key = chr + ":" + start + "-" + end + "_" + var1 + "_" + var2;
-			//cout << "key REMs: " << key << endl;
-
-			if (infoREMs.count(key)>0){ //key exists
-				vector<string> existingInfo = infoREMs[key];
-				for(int i = 0; i < existingInfo.size(); ++i){ //add new info to existing entries
-					existingInfo[i] = existingInfo[i] + "," + helper[i]; 
-				}
-			/*	cout << "existing Info" << endl;
-				for(auto& elem : existingInfo){
-					cout << elem << " ";
-				}
-				cout << "\n"; */
-				infoREMs[key] = existingInfo; //update key info
-			}else{
-				infoREMs[key] = helper;
-			}
-		}
-		overlappingREMs.close();
+	int start = 0, end = 0;
+	string chr = "", var1 = "", var2 = "", line = ""; //stores current line
+	if (REMs){
+		infoREMs = readOverlappingREMs(REMsOverlappFile);
+		numREMFields = CountEntriesFirstLine(getREMs(),'\t') - 1; // same columns as for the input SNPs
 	}
 	//cout << "done withe REM file" << endl;
 	ofstream output(outputFile);
 	//ofstream output2(getBedFileInDels());//store InDels
 	string id = "", MAF = "";
 	int counter_commas = 0;
-	mt19937 generator(seed); // seed muss fuer jeden thread ein andere sein 	
+	mt19937 generator(seed); // different seed per round (each round can run in its own thread) 	
 	int randomNum = 0; //sampled unifrom distributed number
-	int counterSNPs = 0;
 
 	while (getline(input, line, '\n')){
-		counterSNPs++;
 		line = line + '\n';	
 		//getline(input, line, '\n'); //getLine
 		//extract information
 		chr = getToken(line, delim);
 		//cout << "chr: " << chr << endl;
-		start = stoi(getToken(line, delim)) - 50;
+		start = stoi(getToken(line, delim)) - SNV_FLANK;
 		//cout << "start: " << start << endl;
-		end = stoi(getToken(line, delim)) + 50;
+		end = stoi(getToken(line, delim)) + SNV_FLANK;
 		//cout << "end: " << end << endl;
 		var1 = getToken(line, delim);
 	//	cout << "var1: " << var1 << endl;
@@ -873,7 +705,7 @@ void InOutput::parseRandomSNPs(string inputFile, string REMsOverlappFile, string
 		id = getToken(line,delim);
 		MAF = getToken(line,delim);
 		//cout << "var2: " << var2 << endl;
-		string key = chr + ":" + to_string(start+50) + "-" + to_string(end-50) + "_" + var1 + "_" + var2;
+		string key = chr + ":" + to_string(start+SNV_FLANK) + "-" + to_string(end-SNV_FLANK) + "_" + var1 + "_" + var2;
 		//cout << "key: " << key << endl;
 
 		//if there are multiple options for the mutant base, pick randomly one
@@ -894,31 +726,92 @@ void InOutput::parseRandomSNPs(string inputFile, string REMsOverlappFile, string
 		}
 
 		//if ((var1 != "*") and (var2 != "*") and (var1.length() == 1) and (var2.length() == 1)){ 
-		output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+50) << "-"<< to_string(end-50) << ";" << var1 << ";" << var2 << ";" << id << ";" << MAF << ";.";// << '\t' << var1<< '\t' <<  var2 << '\n';
+		output << chr << '\t' <<  start << '\t' << end << '\t' << chr << ":" << to_string(start+SNV_FLANK) << "-"<< to_string(end-SNV_FLANK) << ";" << var1 << ";" << var2 << ";" << id << ";" << MAF << ";.";// << '\t' << var1<< '\t' <<  var2 << '\n';
 		// add REM info
 		if (REMs){
-			if (infoREMs.count(key) == 0){
-				output << ";.;.;.;.;.;.;.;.;.;.;."; 
-				//fuer dennis Hi-c file
-				//output << ";.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;."; 
-			}else{
-				vector<string> helper = infoREMs[key];
-				for(auto& elem : helper){
-			//		cout << elem << " ";
-					output <<  ";" << elem;
-				}
-				//cout << '\n';
-			}
+			output << remColumns(infoREMs, key, numREMFields);
 		}
 		output << '\n';
 	}
 	input.close();
 	output.close();
-	return;// counterSNPs;
+	return;
 }
 
 
 
+
+/*
+* reads the REMs overlapping SNPs (bedtools intersect -wa -wb of the interaction file and a SNP file)
+* returns per SNP (key chr:start-end_var1_var2) the REM info: REM position (chr:start-end), ensemblID, gene name and all
+* further columns of the interaction file; if a SNP overlaps several REMs, the entries are comma separated
+*/
+unordered_map<string, vector<string>> InOutput::readOverlappingREMs(string overlapFile){
+
+	unordered_map<string, vector<string>> infoREMs;
+	char delim = '\t';
+	string line = "", ensembl = "";
+	int entries = CountEntriesFirstLine(getREMs(),'\t'); // columns of the interaction file
+	//read mapping ensembl id -> gene Name
+	unordered_map<string, string> mappingGeneNames;
+	ifstream mapping(getMappingGeneNames());
+	while (getline(mapping, line, '\n')){
+		ensembl = getToken(line, ',');
+		mappingGeneNames[ensembl] = line;
+	} 
+	ifstream overlappingREMs(overlapFile);
+	while (getline(overlappingREMs, line, '\n')){
+		line = line + '\n';
+		vector<string> helper; //stores info per line
+		string chr = getToken(line, delim);
+		string start = getToken(line, delim);
+		string end = getToken(line, delim);
+		helper.push_back(chr + ":" + start + "-" + end);
+		for (int i = 3; i <= entries-1; ++i){ //read only entries REMs
+			string field = getToken(line, delim);
+			helper.push_back(field); //ensembl id, REMid, coefficient, pvalue, normModelScore, meanDNase1Signal, stdDNase1Signal, consortium, version
+			if (i == 3){//determine gene name
+				helper.push_back(mappingGeneNames[field]);
+			}
+		}
+		//read SNP Info
+		chr =  getToken(line,delim);
+		start =  getToken(line,delim);
+		end =  getToken(line,delim);
+		string var1 =  getToken(line,delim);
+		string var2 =  getToken(line,delim);
+		string key = chr + ":" + start + "-" + end + "_" + var1 + "_" + var2;
+
+		if (infoREMs.count(key)>0){ //key exists: add new info to existing entries
+			vector<string>& existingInfo = infoREMs[key];
+			for(size_t i = 0; i < existingInfo.size(); ++i){
+				existingInfo[i] = existingInfo[i] + "," + helper[i]; 
+			}
+		}else{
+			infoREMs[key] = helper;
+		}
+	}
+	overlappingREMs.close();
+	return infoREMs;
+}
+
+/*
+* REM columns of a SNP for the bed file (";" + field each), ";." per field if the SNP overlaps no REM
+*/
+string InOutput::remColumns(unordered_map<string, vector<string>>& infoREMs, const string& key, int numREMFields){
+	string result = "";
+	auto found = infoREMs.find(key);
+	if (found == infoREMs.end()){
+		for (int i = 0; i < numREMFields; ++i){
+			result += ";.";
+		}
+	}else{
+		for(auto& elem : found->second){
+			result += ";" + elem;
+		}
+	}
+	return result;
+}
 
 void InOutput::readScaleValues(string scaleFile, unordered_map<string, double>& scales){
 
@@ -926,13 +819,25 @@ void InOutput::readScaleValues(string scaleFile, unordered_map<string, double>& 
 	string motif = "";
 	double scale = 0.0;
 	string skip = "";
+	string originalLine = "";
+	int lineNumber = 1;
 	ifstream input(scaleFile); //open scaleFile
+	if (!input){
+		throw invalid_argument("cannot open scale file: " + scaleFile);
+	}
 	getline(input, line, '\n'); // skip header
 	while (getline(input, line, '\n')){
-		motif = getToken(line, '\t');
-		skip = getToken(line, '\t'); // scale newton
-		skip = getToken(line, '\t'); // MSE
-		scale = stod(getToken(line, '\t'));
+		lineNumber++;
+		originalLine = line;
+		line += '\n'; // getToken needs a delimiter after the last token
+		try{
+			motif = getToken(line, '\t');
+			skip = getToken(line, '\t'); // scale newton
+			skip = getToken(line, '\t'); // MSE
+			scale = stod(getToken(line, '\t'));
+		}catch (const exception& e){
+			throw invalid_argument("invalid scale file " + scaleFile + ", line " + to_string(lineNumber) + " (expected tab-separated: motif, estimatedScale, MSE, optimizedScale, ...): " + originalLine);
+		}
 		scales[motif] = scale;
 	}
 	input.close();
@@ -1032,14 +937,8 @@ string InOutput::getGenome(){
 int InOutput::getRounds(){
 	return this->samplingRounds;
 }
-int InOutput::getConsideredSNPs(){
-	return this->consideredSNPs;
-}
 int InOutput::getSeed(){
 	return this->seed;
-}
-string InOutput::getBackgroundSequences(){
-	return this->backgroundSeq;
 }
 string InOutput::getdbSNPs(){
 	return this->dbSNPs;

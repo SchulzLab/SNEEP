@@ -13,7 +13,7 @@ from functools import partial
 #suppress warnings
 warnings.filterwarnings('ignore')
 
-STEPSIZE = 0.05 # oder 0.1  or depending on motif length
+STEPSIZE = 0.05 # or 0.1, or depending on motif length
 ROUNDER = 2
 PERCENTAGE = 0.25
 VALUE = 0.01

@@ -5,6 +5,8 @@
 #include <string>
 #include <iostream> 
 #include <ostream>
+#include <stdexcept>
+#include <sys/wait.h> // exit status of system()
 
 using namespace std;
 
@@ -12,9 +14,9 @@ class BashCommand{
 
 	public:
 	//constructor
-	BashCommand(); //TODO im constructor path to bedtools setzen
-	BashCommand(string genome); //TODO im constructor path to bedtools setzen
-	~BashCommand(); //deconstructor
+	BashCommand(); //TODO set the path to bedtools in the constructor
+	BashCommand(string genome); //TODO set the path to bedtools in the constructor
+	~BashCommand(); //destructor
 
 	void intersect(string file_SNPs, string regions, string ouput, string options);
 	void getFasta(string bed_file, string output, string options);
@@ -25,17 +27,12 @@ class BashCommand{
 	//void callPythonScriptSplitPFMs(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
 	void callPythonScriptSplitPFMs(string TransfacPFMs, string PFMsDir, string outputDir);
 	//void callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir);
-	void callPythonScriptSplitPFMsSELEX(string TransfacPFMs, string PFMsDir, string outputDir);
 //	void callPythonScriptSplitSEMs(string sourceDir, string TransfacPFMs, string PFMsDir);
-	void bedtoolsRandom(int len, int num, int seed, string genomes, string output);
-	void cut(string options, string inputFile, string outputFile);
-	void bedtoolsShuffle(string randomSequences, string genomesFile, string excludedSeq, int seed, string options, string output);
 	void anyCommand(string command);
-	void sed(string options, string input, string output);
+	void run(string command); // runs a shell command, stops if it fails
 	void sort(string options, string input, string output);
 	void uniq(string options, string input, string output);
 	//void callHistogram(string input, string output, string sourceDir);
-	string getGenomeFile();
 	void callFormatingScript(string file, string formatedSNPFile);
 
 	private:
@@ -56,7 +53,7 @@ BashCommand::BashCommand(string genome)
 {
 }
 
-//deconstructor
+//destructor
 BashCommand::~BashCommand()
 {
 }
@@ -66,7 +63,7 @@ void BashCommand::intersect(string file_SNPs, string regions, string output, str
 
 	string command = "bedtools intersect " + options + " -a " + file_SNPs + " -b " + regions + " > " + output;
 	//cout << command << endl;
-	system(command.c_str());
+	run(command);
 	return;
 }
 
@@ -75,16 +72,16 @@ void BashCommand::getFasta(string bed_file, string output, string options){
 
 	string command = "bedtools getfasta " + options + " -fi " + genome_ + " -bed " + bed_file + " -fo " + output;
 //	cout << command << endl;
-	system(command.c_str());
+	run(command);
 	return;
 }
 //options usually -p (no error if existing and creating all parent dirs if necessary)
 void BashCommand::mkdir(string dir, string options, bool remove){
 	string command = "mkdir " + options + " " + dir; 
-	system(command.c_str());
+	run(command);
 	if (remove == true){
 		string command = "rm -r -f " + dir + "/*";
-		system(command.c_str());
+		run(command);
 	}
 	return;
 }	
@@ -98,7 +95,7 @@ void BashCommand::callPythonScriptCheckActiveMotifs(string activeTFs, string Tra
 	string command = "seperatePFMsAndCheckActivity.py " + activeTFs + " "+ TransfacPFMs + " " +  PFMsDir + " " + ensemble_name + " " + to_string(threshold) + " " +  outputDir + "/motifInfo.txt";
 //	cout << "command: " << command << endl;
 
-	system(command.c_str());
+	run(command);
 	return;
 }
 
@@ -107,69 +104,21 @@ void BashCommand::callPythonScriptSplitPFMs( string TransfacPFMs, string PFMsDir
 	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
 	//string command = "python3 " + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
 	string command = "seperatePFMs.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
-	system(command.c_str());
+	run(command);
 	return;
 }
 
-//only for snp selex data from f1000 paper https://f1000research.com/articles/11-33#ref6
-//void BashCommand::callPythonScriptSplitPFMsSELEX(string sourceDir, string TransfacPFMs, string PFMsDir, string outputDir){
-void BashCommand::callPythonScriptSplitPFMsSELEX(string TransfacPFMs, string PFMsDir, string outputDir){
-	//string command = "python3 ./" + sourceDir + "/src/seperatePFMs.py " + TransfacPFMs + " " + PFMsDir;
-	//string command = "python3 " + sourceDir + "/src/seperatePFMs_SNP_SELEX.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
-	string command = "seperatePFMs_SNP_SELEX.py " + TransfacPFMs + " " + PFMsDir + " " + outputDir + "/motifInfo.txt" ;
-	cout << command << endl;
-	system(command.c_str());
-	return;
-}
 /*
 void BashCommand::callPythonScriptSplitSEMs(string sourceDir, string TransfacPFMs, string PFMsDir){
 	string command = "python3 ./" + sourceDir + "/seperateSEMs.py " + TransfacPFMs + " " + PFMsDir;
 	cout << command << endl;
-	system(command.c_str());
+	run(command);
 	return;
 }
 */
 void BashCommand::rm(string dir){
 	string command = "rm -f " + dir + "/*";
-	system(command.c_str());
-	return;
-}
-
-void BashCommand::bedtoolsRandom(int len, int num, int seed, string genomes, string output){
-
-	string command = "bedtools random -l " + to_string(len) + " -n " + to_string(num) + " -seed " + to_string(seed) + " -g " + genomes + ">" +  output;
-	cout << command << endl;
-	system(command.c_str());
-	return;
-}
-
-void BashCommand::cut(string options, string inputFile, string outputFile){
-
-	string command = "cut " + options + " " + inputFile + ">"  + outputFile;
-	//cout << command << endl;
-	system(command.c_str());
-	return;
-}
-
-void BashCommand::bedtoolsShuffle(string randomSequences, string genomesFile, string excludedSeq, int seed, string options, string output){
-
-	string command = "";	
-	if (excludedSeq != "no"){
-		if (options != "no"){
-			command = "bedtools shuffle -excl " + excludedSeq  + " -i " + randomSequences + " -g " +  genomesFile + " " + options + " > " + output;
-		} else {
-			command = "bedtools shuffle -excl " + excludedSeq  + " -i " + randomSequences + " -g " +  genomesFile +  " > " + output; 
-		}
-	} else { 
-		if (options != "no"){
-			command = "bedtools shuffle  -i " + randomSequences + " -g " +  genomesFile + " " + options + " > " + output;
-		} else {
-			command = "bedtools shuffle  -i " + randomSequences + " -g " +  genomesFile + " > " + output;
-			cout << command << endl;
-		}
-	}
-	//cout << command << endl;
-	system(command.c_str());
+	run(command);
 	return;
 }
 
@@ -185,20 +134,27 @@ void BashCommand::callFormatingScript(string file,string  formatedSNPFile){
 
 	string command = "formatVCF.py " + file + " " + formatedSNPFile;
 	//cout << command << endl;
-	system(command.c_str());
+	run(command);
 	return;
 }
 
 void BashCommand::anyCommand(string command){
-	system(command.c_str());
+	run(command);
 	//cout << command<< endl;
 	return;
 }
 
-void BashCommand::sed(string options, string input, string output){
-
-	//system(command.c_str());
-	string command = "sed " + options + " " + input + ">" + output;
+/*
+* runs a shell command and stops SNEEP if it fails (exit status != 0),
+* otherwise e.g. a missing tool (bedtools, python3) leads to empty files and silently wrong results
+*/
+void BashCommand::run(string command){
+	int status = system(command.c_str());
+	if (status != 0){
+		int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : status;
+		cerr << "ERROR: command failed (exit code " << exitCode << "): " << command << endl;
+		throw runtime_error("command failed: " + command);
+	}
 	return;
 }
 
@@ -208,18 +164,14 @@ void BashCommand::sort(string options, string input, string output){
 
 	string command = "sort " + options  + " " +  input  + "> " + output;
 	cout << command << endl;
-	system(command.c_str());	
+	run(command);	
 	return;
 }
 void BashCommand::uniq(string options, string input, string output){
 	string command = "uniq " + options + " " + input + " > " + output;
 	cout << command << endl;
-	system(command.c_str());	
+	run(command);	
 	return;
-}
-
-string BashCommand::getGenomeFile(){
-	return this->genome_;
 }
 
 #endif/*CALLBASHCOMMAND_HPP*/

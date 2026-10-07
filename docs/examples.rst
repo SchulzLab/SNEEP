@@ -18,29 +18,31 @@ which results in
 .. code-block:: console
 
   Call program with ./src/differentialBindingAffinity_multipleSNPs
-  optinal parameters:
-  -o outputDir (default SNEEP_output/, if you want to specify it, it must be done as first argument)
+  optional parameters:
+  -o outputDir (default SNEEP_output/); must be empty or contain a former SNEEP output (info.txt), which is deleted
   -n number threads (default 1)
   -p pvalue for motif hits (default 0.5)
-  -c pvalue indicating differential binding (default 0.01)
-  -b base frequency for PFMs -> PWMs (/necessaryInputFiles/frequency.txt)
-  -a if flag is set,  all computed differential binding scores are stored in <outputDir>/AllDiffBindAffinity.txt
+  -c pvalue differential binding (default 0.01)
+  -b base frequency for PFMs -> PWMs ( /necessaryInputFiles/frequency.txt)
+  -a if flag is set,  all computed differential binding affinities are stored in <outputDir>/AllDiffBindAffinity.txt
   -f additional footprint/open chromatin region file in bed file format
-  -m if flag is set, the  maximal differential binding score per SNP is printed
-  -t file where expression values of TFs are stored (e.g RNA-seq in a tab-seperated format e.g. ensemblID	expression-value)
+  -m if flag is set, the  maximal differential binding affinity per SNP is printed
+  -t file where expression values of TFs are stored (e.g RNA-seq in a tab-separated format e.g. ensemblID	expression-value)
   -d threshold TF activity (must be given if -t is given)
-  -e tab-seperated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)
+  -e tab-separated file containing ensemblID to gene name mapping of the TFs (must be given if -t is given)
   -r bed-like file with epigenetic interactions
-  -g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-seperated)(mapping for all genes within EpiRegio)
+  -g path to file containing ensemblID to gene name mapping, must be given if -r is given (,-separated)(mapping for all genes within EpiRegio)
   -j rounds sampled background (default 0)
-  -k path to sorted dbSNP file (if our provided file is used only SNPs in coding regions are considered)
+  -k path to sorted dbSNP file (required for -j, unless -i is given)
+  -i directory with already sampled random SNPs (randomSNPs_<round>.txt, e.g. sampling/ of a former run), used instead of sampling them (-j must be set)
   -l start seed (default 1)
-  -q minimal TF count that needs to be exceeded to be considered in random sampling (default 0)
-  -u gene background analysis is performed (defaul false), -j must be set 
-  -v perform TF enrichment analysis (default  false), -j must be set
-  -x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)-h help
-  transfac PFM file,  bed-like SNP file, path to genome file (fasta format) and scale file (see necessaryInputFiles/estimatedScalesPerMotif_1.9.txt for human data) must be given
-  help function end
+  -q minimal TF count which needs to be exceeded to be considered in random sampling (default 0)
+  -s true or false, match the GC content (+- 30bp around the SNV) in addition to the MAF in the random sampling, requires a dbSNP file with GC content (-k) (default false)
+  -u gene background analysis is performed (default false), -j must be set 
+  -v perform TF enrichment  analysis (default  false), -j must be set
+  -x transition matrix for binding affinity p-value, (default all transitions are equally likely) (necessaryInputFiles/transitionMatrix.txt)
+  -h help
+  transfac PFM file,  bed-like SNP file, path to genome file (fasta format) and scale file (see necessaryInputFiles/estimatedScalesPerMotif_1.9.txt for human data)  must be given
 
 
 Examples of realistic applications
@@ -98,7 +100,7 @@ To associate the target genes, we need to specify a file that contains enhancer-
 Example 4: Compute a proper random background control and highlight cell type-specific TFs
 ---------------------------------------------------------------------------------------------
 
-To perform a random background sampling, the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning that we set -j to 100. However, in our applications, we usually set -j to 500 or 1.000. The random SNPs were sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt; additional information is found in the Section *Optional parameters*), which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seeds for runs with different input SNPs. The flag -q is used to speed up the background sampling by excluding TFs, that did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning that only TFs with at least 1 significant change in the binding score were considered in the background sampling. 
+To perform a random background sampling, the optional parameters -j, -k, -l and -q need to be specified. We recommend to sample at least 100 background rounds, meaning that we set -j to 100. However, in our applications, we usually set -j to 500 or 1.000. The random SNPs were sampled from the dbSNP database. We provide the corresponding file in the Zenodo repository (unzipped file: dbSNPs_sorted.txt; additional information is found in the Section *Optional parameters*), which is used to specify the flag -k. To allow reproducible results, we ask the user to set a random seed via the -l flag. Please use varying random seeds for runs with different input SNPs. The flag -q is used to speed up the background sampling by excluding TFs, that did not have or did have less significant differential binding affinities on the input SNPs. Per default -q is set not 0, meaning that only TFs with at least 1 significant change in the binding score were considered in the background sampling. The random SNPs are matched to the MAF distribution of the input SNPs; with -s true, they are additionally matched to the GC content (requires the dbSNP file with GC content, see `flag -s <https://sneep.readthedocs.io/en/latest/detailsInput.html#flag-s-match-the-gc-content-in-the-background-sampling>`_). 
 Furthermore, we recommend running SNEEP in the parallel mode by specifying the number of threads via the -n flag. 
 
 A possible SNEEP run with background sampling can look as follows: 

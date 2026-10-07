@@ -22,8 +22,9 @@
 
 //own classes
 #include "callBashCommand.hpp"
+#include "stringUtils.hpp"
 
-int MAXIMAL_ROUNDS = 1500;
+const int MAXIMAL_ROUNDS = 1500; // seed offset per bin, larger than the number of rounds
 
 // number of flanking bases on each side of the SNV used for the GC content (window = 2 * GC_FLANK + 1 bp)
 // must be the same as in getSNPInfo.cpp, which precomputes the GC content of the dbSNP SNVs
@@ -71,12 +72,11 @@ class rsIDsampler{
 	//Constructor
 	rsIDsampler(double binwidth_, string pathTodbSNPFile_, vector<double>& MAF_); // MAF matching only
 	rsIDsampler(double binwidth_, double gcBinwidth_, string pathTodbSNPFile_, vector<double>& MAF_, vector<double>& GC_); // MAF x GC matching, GC_[i] = -1: SNV i is matched by MAF only
-	//Deconstructor
+	//Destructor
 	~rsIDsampler();
 
 	//functions
 	vector<string> determineRandomSNPs(string outputDir, int rounds, int seed);
-	string getToken(string& line, char delim);
 
 	//getter
 	double getBinwidth();
@@ -138,7 +138,7 @@ rsIDsampler::rsIDsampler(double binwidth_, double gcBinwidth_, string pathTodbSN
 	splitInBins();
 }
 
-//deconstructor
+//destructor
 rsIDsampler::~rsIDsampler()
 {
 }
@@ -453,21 +453,6 @@ void rsIDsampler::sampleSNPs(int counter, vector<string>& lines, vector<int>* po
 	return;
 }
 
-/*
-/ Input: line and delim as char
-/ Ouput: return the substring until the delim and it cuts this token from line
-*/
-string rsIDsampler::getToken(string& line, char delim){
-	int pos = 0;
-	//cout << line << " " << line.find(delim) << endl;
-	if(((pos = line.find(delim)) != std::string::npos) || ((pos = line.find('\n')) != std::string::npos)){
-    		string token = line.substr(0, pos);
-    		line.erase(0, pos + 1);
-		return token;
-	}else{
-		throw invalid_argument ("invalid file format:" + line);
-	}
-}
 
 //getter
 double rsIDsampler::getBinwidth(){

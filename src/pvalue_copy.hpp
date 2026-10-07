@@ -12,8 +12,8 @@
 
 using namespace std;
 //double E = 1.2e-16;
-double E = 1.2e-16;
-double E2 = 1.0e-11;
+const double E = 1.2e-16;
+const double E2 = 1.0e-11;
 
 
 
@@ -24,7 +24,7 @@ class pvalue{
 	//constructors
 	pvalue();
 	pvalue(int size_kmer, double acc);
-	~pvalue(); //deconstructor
+	~pvalue(); //destructor
 	pvalue(const pvalue&); //copy constructor
 
 	//vector<double> calculatePvalues(Matrix<double>& PWM, Matrix<double>& freq);
@@ -54,10 +54,10 @@ pvalue::pvalue(int size_kmer, double acc)
 {
 }
 
-//deconstructor
+//destructor
 pvalue::~pvalue()
 {
-//	cout << "deconstructor" << endl;
+//	cout << "destructor" << endl;
 }
 
 //copy constructor
@@ -75,7 +75,7 @@ vector<double> pvalue::calculatePvalues(Matrix<double>& PWM, vector<double>& fre
 	double t = 0.0;
 	double min = 1;
 	//Matrix<double> DP(size_kmer_+1, helper);
-	Matrix<double> DP((size_kmer_ * 4)+1, helper); // für jeden buchstaben eigene reihe 
+	Matrix<double> DP((size_kmer_ * 4)+1, helper); // one row per letter 
 	int counter = 1;
 	int pos_DP = 0;
 	/// iterate over length of kmer -> all prefixe of the kmer		
@@ -87,11 +87,12 @@ vector<double> pvalue::calculatePvalues(Matrix<double>& PWM, vector<double>& fre
 			pos_DP++;
 		//case Q_i(t)
 		}else{
-			//iterate over all possible thresholds
-			for (int k = 1; k <=helper; k++){
+			//iterate over all possible thresholds; the target column is helper - k, so k < helper
+			//(k = helper would be one step above the maximal score, column 0 does not exist; it only added 0)
+			for (int k = 1; k < helper; k++){
 				if (k == 1){
 					//determine min entry
-					// so ueberspringen wir die positionen in die wir eh null eintragen wuerden
+					// this way we skip the positions which would be 0 anyway
 					for( int n = 1; n <= 4; n++){
 						if (PWM(n,i) < min)
 							min = PWM(n,i);			
@@ -113,17 +114,17 @@ vector<double> pvalue::calculatePvalues(Matrix<double>& PWM, vector<double>& fre
 									
 								DP(pos_DP+j, helper - counter) = DP(pos_DP +j, helper-counter) + (DP(pos_DP, pos)*freq[j-1]);
 							}else{
-								//rausfinden welcher buchstabe vorhergelesen wurde 
-								if (abs(DP(pos_DP, pos)) > E){ //vorheriger buchstabe A
+								//determine which letter was read before 
+								if (abs(DP(pos_DP, pos)) > E){ //previous letter A
 									DP(pos_DP+4, helper - counter) = DP(pos_DP+4, helper-counter) + (DP(pos_DP, pos)*background(j, 1));
 								}
-								if (abs(DP(pos_DP+1, pos)) > E){ //vorheriger buchstabe C
+								if (abs(DP(pos_DP+1, pos)) > E){ //previous letter C
 									DP(pos_DP+5, helper - counter) = DP(pos_DP+5, helper-counter) + (DP(pos_DP+1, pos)*background(j, 2));
 								}
-								if (abs(DP(pos_DP+2, pos)) > E){ //vorheriger buchstabe G
+								if (abs(DP(pos_DP+2, pos)) > E){ //previous letter G
 									DP(pos_DP+6, helper - counter) = DP(pos_DP+6, helper-counter) + (DP(pos_DP+2, pos)*background(j,3));
 								}
-								if (abs(DP(pos_DP+3, pos)) > E){ //vorheriger buchstabe T
+								if (abs(DP(pos_DP+3, pos)) > E){ //previous letter T
 									DP(pos_DP+7, helper - counter) = DP(pos_DP+7, helper-counter) + (DP(pos_DP+3, pos)*background(j,4));
 								}
 							}
@@ -146,8 +147,8 @@ vector<double> pvalue::calculatePvalues(Matrix<double>& PWM, vector<double>& fre
 	//----------------------------------
 	//checks if algorithm works correct
 
-	//da totale whrscheinlichkeit muessen die wahrscheinlichkeiten einer zeile aufaddiert eins sein
-	// und hier müsste man immer vier aufeinanderfolgende zeilen aufaddieren
+	//total probability: the probabilities of a row must sum up to one
+	// here always four consecutive rows have to be summed up
 	vector<double> sum(size_kmer_);
 	int counter_sum = 0;
 	int h = 0;
@@ -177,8 +178,8 @@ vector<double> pvalue::calculatePvalues(Matrix<double>& PWM, vector<double>& fre
 	}
 	//-------------------------------
 
-	// fuellen des vectors der cumulative wahrscheinlichkeit enthaelt, entspricht dem pvalue
-	// und hier auch die letzen vier zeilen aufaddieren
+	// fill the vector with the cumulative probability, which corresponds to the p-value
+	// here also the last four rows are summed up
 	int last_row = (size_kmer_*4) +1;
 	for(int i= 1; i<= helper; i++){
 		if (i == 1){

@@ -16,6 +16,7 @@
 #include "callBashCommand.hpp"
 #include "HandleInOutput.hpp"
 #include "sampleRandomRsIDs2.hpp"
+#include "stringUtils.hpp"
 
 //neccessary for function strcmp
 #include <stdio.h>
@@ -24,7 +25,7 @@
 //important for reading a directory
 #include <dirent.h>
 #include <sys/types.h>
-#include <getopt.h> //einlesen der argumente
+#include <getopt.h> //parse the command line arguments
 
 //for log
 #include <math.h>
@@ -36,24 +37,20 @@ using namespace std;
 
 //------------------------------
 //Global variables default values 
-int COMPLEMENT[] = {0,4,0,3,1,0,0,2,0,0,0,0,0,0,5};// considers also N
-int POSITION[] = {0,1,0,2,4,0,0,3,0,0,0,0,0,0,5}; // considers also N 
-double EPSILON = 0.001; // accuracy of the PWMs, EPSILON which is added to zeor PWM entries
+const int COMPLEMENT[] = {0,4,0,3,1,0,0,2,0,0,0,0,0,0,5};// considers also N
+const int POSITION[] = {0,1,0,2,4,0,0,3,0,0,0,0,0,0,5}; // considers also N 
+const double EPSILON = 0.001; // accuracy of the PWMs, EPSILON which is added to zeor PWM entries
 
 //functions
 vector<string> readDirectory(const char *path); //stores all files of a directory
 vector<double> readFrequence(string frequence); //read the base pair frequence of the genome or 0.25 per base
 vector<Matrix<double>> PFMsToPWMs( vector<string>& PWM_files, vector<double>& freq, string path_to_pwms); //determines PWMs based on the input count matrices
-int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double pvalue, int pos_snp, vector<double>& prob_sequences);//determines the binding affinity pro sequence
-double probKmer(Matrix<double>& PWM,string::iterator start, string::iterator end); // determines binding affinity for each kmer
-double probKmerComplement(Matrix<double>& PWM,string::iterator start, string::iterator end); // same for the complement
+int probProSeq(Matrix<double>& PWM, const string& line, const vector<double>& pvalues, double pvalue, int pos_snp, vector<double>& prob_sequences);//determines the binding affinity pro sequence
+double probKmer(Matrix<double>& PWM,string::const_iterator start, string::const_iterator end); // determines binding affinity for each kmer
+double probKmerComplement(Matrix<double>& PWM,string::const_iterator start, string::const_iterator end); // same for the complement
 int getMutatedPos(string mut_pos); //calculates which position in the input sequence is the mutated position 
 string getChr(string mut_pos); //return the chr of  chr:start-end 
-int getSeqStart(string header); //same but return the start
-int getSeqEnd(string header); //return the end
 string createMutatedSeq(string header, string& seq, vector<string>& splittedHeader); //determines the mutated sequence based on the given SNP
-double cdf_laplace(double my, double beta, double value); //determine laplace distribution
-double differentialBindingAffinityBackground(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers);
 //double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round);
 double differentialBindingAffinity(double first_elem, double second_elem,  double& log_, double& scale, int numberKmers);
 string forwardOrReverse(int distance_); //determines on which strand the motif bindes
@@ -61,13 +58,37 @@ vector<string> parseHeader(string header, string delim); //parse the header of t
 void writeHeadersOutputFiles(bool writeOutput,  string& currentOutput, string seq,string header, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr);
 void determineMAFsForSNPs(string SNPsFile,vector<double>& MAF);
 void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<double>& GC, vector<string>& warnings);
-void determineMAFsForLeadSNPs(string SNPsFile,vector<double>& MAF, vector<string>& leadSNPs);
-string getToken(string& line, char delim);
 bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b);
 bool sortby(const tuple<double, string , string, string>& a, const tuple<double,string,  string, string>& b);
 double cdf_laplace_abs_max(double scale, double numberKmers, double value);
 
+// result of scoring one motif for one SNV: the k-mer with the maximal differential binding score (smallest p-value)
+struct MotifHit{
+	bool sigHit = false; // at least one k-mer (wildtype or mutated) with a binding p-value <= threshold (-p)
+	double pvalue = 1.0; // p-value of the maximal differential binding score
+	int maxPosSigHit = 0; // genomic position of the last base of the best k-mer
+	string orientation = ""; // (f) or (r)
+	double val1 = 0.0, val2 = 0.0, log = 0.0; // binding p-values wildtype and mutated sequence, log ratio
+	int lenMotif = 0;
+};
+MotifHit scoreMotif(Matrix<double>& PWM, const vector<double>& pvalues, double scale, int lenMotif, const string& wildtypeSeq, const string& mutSeq, double pvalueThreshold, int pos, const string& motif, const string& chr, string* allOutput);
+string formatHit(const MotifHit& hit, const string& chr, int pos);
+string fastaName(const string& headerLine);
+
+int runSNEEP(int argc, char *argv[]);
+
+// errors (e.g. a failed shell command) stop SNEEP with a message and exit code 1
+// (exceptions inside OpenMP parallel regions cannot be caught here, the message is printed before)
 int main(int argc, char *argv[]){
+	try{
+		return runSNEEP(argc, argv);
+	} catch (exception& e){
+		cerr << "ERROR: " << e.what() << endl;
+		return 1;
+	}
+}
+
+int runSNEEP(int argc, char *argv[]){
 
 	cout << "HELLO github sneep version" << endl;
 	
@@ -80,13 +101,31 @@ int main(int argc, char *argv[]){
 	try{
 		io.parseInputPara(argc, argv); //set all paths according to input 
 	} catch (exception& e){
-		cout << e.what() << endl;
-		return (0);
+		if (string(e.what()) == "help function end"){ // -h
+			return 0;
+		}
+		cout << "ERROR: " << e.what() << endl;
+		return 1;
 	}
 
 	//create instance bashCommand -> moved to handleInOutput.hpp -> parseInputPara
 	BashCommand bc(io.getGenome()); //constructor bashcommand class
-	bc.mkdir(io.getOutputDir(), "-p", true); //make outputDir
+	//make outputDir; an existing dir is only cleared if it contains a former SNEEP output (info.txt),
+	//otherwise SNEEP stops to avoid deleting other data (e.g. with -o . or a mistyped path)
+	bc.mkdir(io.getOutputDir(), "-p", false);
+	vector<string> existingFiles;
+	for (auto& file : readDirectory(io.getOutputDir().c_str())){
+		if (file[0] != '.'){ // hidden files (e.g. .DS_Store) are ignored and not deleted
+			existingFiles.push_back(file);
+		}
+	}
+	if (!existingFiles.empty()){
+		if (find(existingFiles.begin(), existingFiles.end(), "info.txt") == existingFiles.end()){
+			cout << "ERROR: output directory " << io.getOutputDir() << " is not empty and contains no former SNEEP output (info.txt), please choose another directory (-o)" << endl;
+			return 1;
+		}
+		bc.anyCommand("rm -r -f " + io.getOutputDir() + "*"); // remove the former SNEEP output
+	}
 	ofstream info = io.openFile(io.getInfoFile(), false); //open info file
 	info << io << endl; // write settings 
 	info.close();
@@ -95,13 +134,6 @@ int main(int argc, char *argv[]){
 	io.fileFormatVCF(); // if file is CVF format parse to bed-like format and store new file in outputDir as formatedSNPs.txt
 
 	io.checkIfSNPsAreUnique(); // removes SNPs from inputSNP list which are not unique  and stores them in info file
-	vector<string>leadSNPs; // a list of all lead SNPs
-	unordered_map<string, vector<string>> proxySNPs; // for each lead SNP a list of al proxy SNPs is provided
-	if (io.getGeneBackground() == true){
-	//	cout << "hier" << endl;
-		io.getInfoSNPs(leadSNPs, proxySNPs);
-	}
-	int numberLeadSNPs = leadSNPs.size();
 	//cout << "checked if SNPs are unique" << endl;
 	//overlap with REMs
 	string SNPFile = io.getSNPs();
@@ -112,16 +144,13 @@ int main(int argc, char *argv[]){
 
 	//check if there is a REM file and if so determine overlap with the given SNPs
 	string REMs = io.getREMs();
+	// header of result.txt and of the background results (sampling/randomResult_<round>.txt), same format
+	string resultHeader = (REMs != "") ? "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\n" : "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\n";
+	resultFile << resultHeader;
 	//unordered_map<string, vector<string>> SNPsToOverlappingREMs;
 	if (REMs != ""){
-		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\n";
 		string output = io.getOverlappingREMs();
 		bc.intersect(REMs, SNPFile, output, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
-	}else{
-		
-		//write header output file
-		resultFile << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\n";
 	}
 	//determine overlapping peaks
 	string footprintFile = io.getFootprints();
@@ -170,7 +199,7 @@ int main(int argc, char *argv[]){
 
 	//convert PFMs internally to PWMs
 	vector<string> PWM_files = readDirectory(io.getPFMsDir().c_str()); //stores names of all pwm files
-	vector<double> freq = readFrequence(io.getFrequence()); //TODO datenspezifisch bestimmen gibts da ein ebdtool function?
+	vector<double> freq = readFrequence(io.getFrequence()); //TODO determine from the data? is there a bedtools function?
 	vector<Matrix<double>> PWMs = PFMsToPWMs(PWM_files,freq, io.getPFMsDir());
 
 	//determine pvalues for PFMs 
@@ -198,23 +227,49 @@ int main(int argc, char *argv[]){
 	//stores all sequences and the according header
 	string line = "";
 	string helper1 (1000, 'a'); //initialize as string of length 1000 with only a's
-	string helper2 (105, 'a'); //sequences is of length 100
+	string helper2 (2 * SNV_FLANK + 1, 'a'); //sequences: SNV_FLANK bp + SNV + SNV_FLANK bp
 	vector<string> headers (numberSNPs, helper1); //to avoid reallocation
 	vector<string> sequences (numberSNPs, helper2);
 	//unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
 
 	//vector<unordered_map<double, double>> vec_overall_preLog;
 
-	int sigEntries = 0, sigEntriesOverlappingREM = 0;
 
 	ifstream pro_seq(io.getSNPfastaFile()); //open fasta file
 	for(int n = 0; n < numberSNPs; ++n){
 		getline(pro_seq, line, '\n'); //header
-		headers[n] = line.substr(1);
+		headers[n] = fastaName(line);
 		getline(pro_seq, line, '\n'); //header
 		sequences[n] = line;
 	}
 	pro_seq.close(); // close fasta file
+
+	// check the alleles against the reference genome; mismatches are only reported, since SNEEP cannot tell their cause apart:
+	// wrong coordinates, another genome build or alleles on the minus strand (for a non-palindromic SNV the two alleles and
+	// their complements cover all four bases, so a minus strand cannot be distinguished from a wrong position)
+	int numMismatches = 0;
+	ofstream infoAlleles = io.openFile(io.getInfoFile(), true);
+	for(int n = 0; n < numberSNPs; ++n){
+		vector<string> fields = parseHeader(headers[n], ";"); //chr:start-end, var1, var2, rsID, ...
+		char ref = ((int)sequences[n].size() > SNV_FLANK) ? toupper(sequences[n][SNV_FLANK]) : 'N';
+		char var1 = toupper(fields[1][0]), var2 = toupper(fields[2][0]);
+		if (ref != var1 and ref != var2){
+			numMismatches++;
+			infoAlleles << "WARNING allele: SNV " << fields[0] << ";" << fields[1] << ";" << fields[2] << ";" << fields[3] << ": reference base " << ref << " matches neither var1 nor var2\n";
+		}
+	}
+	infoAlleles << "!\tnumSNPsAllelesNotMatchingReference: " << numMismatches << '\n';
+	if (numMismatches > 0){
+		ostringstream percent;
+		percent << fixed << setprecision(1) << 100.0 * numMismatches / numberSNPs;
+		string warning = "for " + to_string(numMismatches) + " of " + to_string(numberSNPs) + " SNVs (" + percent.str() + "%) neither var1 nor var2 matches the reference base (listed in info.txt)";
+		if (100.0 * numMismatches / numberSNPs > 5.0){
+			warning += "; this is a high fraction, please check that the coordinates are 0-based, the SNVs and the genome file have the same genome build, and the alleles are given for the plus strand";
+		}
+		cout << "WARNING: " << warning << endl;
+		infoAlleles << "WARNING allele: " << warning << '\n';
+	}
+	infoAlleles.close();
 
 	bool writeOutput = false;
 	bool outputMax =  io.getMaxOutput();
@@ -232,6 +287,21 @@ int main(int argc, char *argv[]){
 		motifNames.push_back(PWM_files[i].substr(0 , PWM_files[i].size() -4)); //set motif
 		lenMotifs.push_back(PWMs[i].ncol());
 	}	
+	if (numMotifs == 0){
+		cout << "ERROR: no motifs found in " << io.getPFMsDir() << " (splitting the motif file " << io.getPFMs() << " failed?)" << endl;
+		return 1;
+	}
+	vector<double> motifScales; // scale per motif (0 if the motif is not in the scale file, then the p-value is 1)
+	ofstream infoScales = io.openFile(io.getInfoFile(), true);
+	for (auto& elem : motifNames){
+		if (scales.count(elem) == 0 or scales[elem] <= 0.0){ // p-value of the differential binding score is always 1
+			string reason = (scales.count(elem) == 0) ? "is not in the scale file" : "has no positive scale in the scale file";
+			cout << "WARNING: motif " << elem << " " << reason << " (" << io.getScaleFile() << "), it is never significant (p-value 1)" << endl;
+			infoScales << "WARNING scale: motif " << elem << " " << reason << " (" << io.getScaleFile() << "), it is never significant (p-value 1)\n";
+		}
+		motifScales.push_back(scales[elem]);
+	}
+	infoScales.close();
 	//determine average counts for TFs, genes and REMs
 	unordered_map<string, double> realData_TFs;
 	for (auto& elem : motifNames){ //initialize the TF map
@@ -243,31 +313,24 @@ int main(int argc, char *argv[]){
 
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for (int i = 0; i <numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
-		unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
 		//define variables
-		vector<tuple<double, string>> overallResultMax; //stores max result
-		//unordered_map<string, double> TFBindingValues;
+		vector<tuple<double, string>> overallResultMax; //stores max result per motif
 		unordered_map<string, string> helperOverallResult;
-		string chr = "",  mutSeq = "", direction = "", wildtypeSeq = "", genes = "", REMs_ = ""; //stores if the SNP annotation was for the forward or the reversed strand
-		int posMut = 0, pos = 0; // position of the snp within the genome an relative within the given sequence
 
 		//create mutated sequence
 		vector<string> splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
-		wildtypeSeq = sequences[i];
-		mutSeq = createMutatedSeq(headers[i], wildtypeSeq, splittedHeader); // check if all SNPs are fitting to the reference this is done within create mutated seq (also check for reverse strand)
-		pos = getMutatedPos(splittedHeader[0]);
-		//cout << "pos: " << pos << endl;
-		chr = getChr(splittedHeader[0]);
-		//cout << "chr: " << chr << endl;
-		posMut = 50; // since we considere 50 bp upstream and downstream the snp
+		string wildtypeSeq = sequences[i];
+		string mutSeq = createMutatedSeq(headers[i], wildtypeSeq, splittedHeader); // sets var1 in the wildtype sequence and returns the sequence with var2
+		int pos = getMutatedPos(splittedHeader[0]); // position of the snp within the genome
+		string chr = getChr(splittedHeader[0]);
 
 		// store parts of the output that is same per snp in the following to avoid multiple access to splittedHeader
 		string part1 = splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5];
 		string part2 = "";
 		if (REMs == ""){
-			part2 = splittedHeader[6] + '\n';
+			part2 = "\n";
 		}else{
-			part2 = splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n';
+			part2 = '\t' + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n';
 		}
 		
 		//write parts of the output
@@ -275,95 +338,20 @@ int main(int argc, char *argv[]){
 		if (!mutSeq.empty()){//if mutSeq is not a fit, the stringis empty
 			writeHeadersOutputFiles(writeOutput, currentOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
 		}
-		//#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 		for(int j = 0; j < numMotifs; ++j){ // iterate over all given motifs
-			int sigHit = 0; //for MatrixSigHits
-				
-			//define vaiables
-			//necessary for determinig differential binding affinity
-			int posSigHit = 0, maxPosSigHit = 0, maxLenMotif = 0;
-			string direction = "", maxOrientation = "";
-			double diffBindingAff = 0.0; //stores result of the differential binding affinity
-			double diffBinding = 0.0, log_ = 0.0, maxDiffBinding = 1.0, maxVal1 = 0.0, maxVal2 = 0.0, maxLog = 0.0, result = 0.0;//maxDiffBinding for determinig best hit per seq
-			//variables store the information for the best hit er seq
-			vector<double>::iterator it; //iterater to determine min pos in first_seq and second_seq
-			vector<double> firstSeq; //stores binding affinity normal seq
-			vector<double> secondSeq; // stores binding affinity mutated seq
-		
 			motif = motifNames[j]; //set motif
-			//cout << "motif: " << motif << endl;
-			int lenMotif = lenMotifs[j];
-			//cout << lenMotif << endl;
-			vector<double> pvalues = all_pvalues[motif]; //pvalues for current motif
-
-			//calculate probabiblity for sequences of the current TF	
-			if (probProSeq(PWMs[j], wildtypeSeq,  pvalues, io.getPvalue(), posMut, firstSeq) == 1){ //first_seq contains wildtype sequence
-				sigHit  = 1;
-			} 
-			//print out pvalues of binding score for all kmers of the current TF for wildtype seq
-		/*	cout << motif << "\twiltype";
-			for (auto i: firstSeq){
-				cout << '\t' << i;
-			}
-			cout << "\n"; */
-			//calculate pvalue of the mutated sequence	
-			if (probProSeq(PWMs[j], mutSeq, pvalues, io.getPvalue(), posMut, secondSeq) == 1){ //second_seq contain mutated sequence
-				sigHit = 1;
-			}
-			//print out pvalues of binding score for all kmers of the current TF for alterative seq
-			/*cout << motif << "\talternative";
-			for (auto i: firstSeq){
-				cout << '\t' << i;
-			}
-			cout << "\n";*/
-
-			//int maxDiff_index = 0;
-			if (sigHit == 1){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
-				for (int l = 0; l < firstSeq.size(); ++l){ 
-			
-					if (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue()){
-						posSigHit = pos + floor(l/2); //deterime position of the hit	
-						diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], log_, scales[motif], lenMotif*2);
-						//cout << diffBinding << "\t" << lenMotif << "\t" << motif << endl;
-
-						if (diffBinding <= maxDiffBinding){// and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
-							maxDiffBinding = diffBinding;
-							maxPosSigHit = posSigHit;
-							maxOrientation = forwardOrReverse(l);
-							maxVal1 = firstSeq[l];
-							maxVal2 = secondSeq[l];
-							maxLog = log_;
-							maxLenMotif = lenMotif;
-							//maxDiff_index = l;
-						}
-						//add current SNP info to output (currentOutput)
-						if (writeOutput){ // and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
-							currentOutput.append(motif + '\t' + chr + ":" + to_string(posSigHit) + forwardOrReverse(l) + '\t' + to_string(firstSeq[l]) +  "\t" +  to_string(secondSeq[l]) +  "\t" + to_string(log_) + '\t' +  to_string(diffBinding)  + '\n');
-						}
-					}
-				}
-
+			MotifHit hit = scoreMotif(PWMs[j], all_pvalues.at(motif), motifScales[j], lenMotifs[j], wildtypeSeq, mutSeq, io.getPvalue(), pos, motif, chr, writeOutput ? &currentOutput : nullptr);
+			if (hit.sigHit){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
 				if (outputMax == true){
-					cout << maxLog << "\t" << lenMotif << "\t" << motif << endl;
+					cout << hit.log << "\t" << lenMotifs[j] << "\t" << motif << endl;
 				}
 				// determined maxLog pro motifs (pro SNP)
-				overallResultMax.push_back(make_tuple(maxDiffBinding, motif)); //add  pvalue to overallResultMAx
-				string value = "";
-				if (maxOrientation  == "(f)"){
-					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' + to_string( pos - (maxPosSigHit- maxLenMotif+1) +1)  + '\t' + to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t';
-				}else{
-					value =  chr + ':' + to_string(maxPosSigHit- maxLenMotif+1) + "-" + to_string(maxPosSigHit+1) + '\t' +  maxOrientation + '\t' +  to_string(maxPosSigHit+1 - pos) + '\t'+  to_string(maxVal1) + '\t' + to_string(maxVal2) + '\t' + to_string(maxLog) + '\t';	
-				}
-
-				helperOverallResult[motif] = value;
+				overallResultMax.push_back(make_tuple(hit.pvalue, motif)); //add  pvalue to overallResultMAx
+				helperOverallResult[motif] = formatHit(hit, chr, pos) + '\t';
 			}else{
-				//cout << "hier" << endl;
 				if (io.getPvalueDiff() == 1){ //for ASB/non-ASB testing (we need all snps in the output file) 
-
-					
 					#pragma omp critical 
-					resultFile << splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t'  + splittedHeader[4] + '\t' + splittedHeader[5] + '\t' + motif + "\t-\t-\t-\t0.0\t0.0\t0.0\t1.0\t1.0\t.\t.\t.\t.\t.\t.\t.\t.\t.\t.\n"; 
-
+					resultFile << part1 + '\t' + motif + "\t-\t-\t-\t0.0\t0.0\t0.0\t1.0" + (REMs != "" ? "\t.\t.\t.\t.\t.\t.\t.\t.\t.\t." : "") + "\n"; 
 				}
 			}
 		}
@@ -371,7 +359,6 @@ int main(int argc, char *argv[]){
 		//sort overall_result per snp and all TFs
 		string m = "";
 		double p = 0.0;
-		double c_p = 0.0; //stores fdr corrected pvalue
 		sort(overallResultMax.begin(), overallResultMax.end(), sortbyth);
 		//cout << overallResultMax.size() << endl;
 	
@@ -383,7 +370,7 @@ int main(int argc, char *argv[]){
 			//resultFile << part1 << '\t' << motif << '\t' << value   << std::scientific << maxDiffBinding << "\tneedToBeComputeds\t" << part2;
 			//resultAllSNPs.push_back(make_tuple( p,m,  part1 + '\t' + m + '\t' +  helperOverallResult[m],  part2 ));
 			if (p <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ // cutoff based on not fdr corrected pvalue for Jayas data (also for background sampling)
-				resultFile << part1 << '\t' << m << '\t' <<  helperOverallResult[m] <<  std::scientific << p << '\t' << part2;
+				resultFile << part1 << '\t' << m << '\t' <<  helperOverallResult[m] <<  std::scientific << p << part2;
 				realData_TFs[m]+=1;// count number of TF hits seen in original data
 			}
 		}
@@ -396,35 +383,6 @@ int main(int argc, char *argv[]){
 
 
 	//sort resultAllSNPs based on p-value 
-	/*sort(resultAllSNPs.begin(), resultAllSNPs.end(),sortby);
-
-	//compute fdr	
-	double snpsXmotifs = numMotifs * numberSNPs; 
-	cout << "number of tests: "  << snpsXmotifs << endl;
-	double rank = resultAllSNPs.size(); 
-
-	cout << "rank bevor correction: " << rank << endl;
-	double previous_pvalue = 1.0;
-
-	for (auto& elem : resultAllSNPs){ // get vector per entry
-	
-		//compute fdr
-		double p = get<0>(elem);
-		string m = get<1>(elem);
-		double helper = min(p*(snpsXmotifs/rank), previous_pvalue);
-		previous_pvalue = helper;
-		rank--;
-		//if (helper <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ //cutoff based on fdr corrected pvalue
-		// for jayas analysis
-		if (p <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ // cutoff based on not fdr corrected pvalue for Jayas data (also for background sampling)
-			#pragma omp critical
-			realData_TFs[m]+=1;// count number of TF hits seen in original data
-
-			resultFile << get<2>(elem) << std::scientific << p << '\t' << std::scientific << helper << '\t' << get<3>(elem); 
-		}
-	}
-	cout << "rank after correction: " << rank << endl; 
-	*/
 	resultFile.close();
 	///outputMax.close();
 	output.close();
@@ -439,8 +397,6 @@ int main(int argc, char *argv[]){
 	string outputDir = io.getOutputDir();
 	ofstream outputTFs;
 	outputTFs.open(outputDir + "/TF_count.txt");
-	double helper_g = 0;
-	double helper_l = 0;
 	outputTFs << "."; //write header (all TF names)
 	for (auto& elem : motifNames){
 		outputTFs << '\t' << elem;
@@ -460,6 +416,7 @@ int main(int argc, char *argv[]){
 		vector<string> randomSampling_motifNames; 
 		vector<int> randomSampling_lenMotifs;
 		vector<Matrix<double>> randomSampling_PWMs;
+		vector<double> randomSampling_scales;
 		string c_motif = "";
 		int randomSampling_numMotifs = 0;
 		// if we want to compute a gene bacground we need to consider all TFs and cannot reduce the set of motifs (no speed up)
@@ -471,36 +428,31 @@ int main(int argc, char *argv[]){
 				randomSampling_motifNames.push_back(c_motif); //set motif
 				randomSampling_lenMotifs.push_back(lenMotifs[i]);
 				randomSampling_PWMs.push_back(PWMs[i]);
+				randomSampling_scales.push_back(motifScales[i]);
 			}
 		}	
 		cout << "number TFs: " << numMotifs << endl; 
 		cout << "number TFs considered background sampling: " << randomSampling_numMotifs << endl; 
 
-		string randomDir = "";	
+		// all files of the background rounds are written to <outputDir>/sampling (also with -i, where only the
+		// random SNPs are read from the given directory)
+		string randomDir = outputDir + "sampling";
+		bc.mkdir(randomDir, "-p" , false);
 		vector<string> SNP_filenames (rounds, ""); // initalize vector holding the random files 
 
 		//initialize variables
 		vector<double> MAF;
 		vector<double> GC;
-		double pvalue = io.getPvalue(), pvalueDiff = io.getPvalueDiff();
+		double pvalue = io.getPvalue();
 
 		if (io.getRandomSNPs() == ""){	
 			cout << "sample snps case" << endl;
-			randomDir = outputDir + "sampling";
-			bc.mkdir(randomDir, "-p" , false);
-			// new strategy: always compute proxy snps of the lead SNPs -> sample only as many SNPs as lead SNPs were available
 			vector<string> warnings;
-			//if (io.getTfBackground() == true){
 			if (io.getGCMatching()){
 				determineMAFsAndGCForSNPs(io.getSNPfastaFile(), MAF, GC, warnings); //read MAF and GC content (from the sequence) of the input SNPs
 			}else{
 				determineMAFsForSNPs(io.getSNPBedFile(), MAF); //read MAF distribution from input SNP file
 			}
-
-			//}else{ //only gene background, only sample as many random snps as lead snps
-				// TODO: this command is needed to get the lead snps
-			//determineMAFsForLeadSNPs(io.getSNPBedFile(), MAF, leadSNPs); //read MAF distribution from input SNP file
-			//}
 
 			cout << "before sampling" << endl;
 			if (io.getGCMatching()){
@@ -523,15 +475,14 @@ int main(int argc, char *argv[]){
 			info_.close();
 			cout << "after sampling" << endl;
 		}else{
-			randomDir = io.getRandomSNPs();
 			cout << "randomly sampled SNPs are provided" << endl; 
-
-			string num = "";
-			for (int r = 0; r < rounds; r++){
-				num = to_string(r);
-				SNP_filenames[r] = randomDir + "/randomSNPs_" + num + ".txt";	
+			for (int r = 0; r < rounds; r++){ // only read from the given directory
+				SNP_filenames[r] = io.getRandomSNPs() + "/randomSNPs_" + to_string(r) + ".txt";
+				if (!ifstream(SNP_filenames[r])){
+					cout << "ERROR: random SNPs of round " << r << " not found: " << SNP_filenames[r] << " (-i must contain randomSNPs_0.txt ... randomSNPs_" << rounds - 1 << ".txt for -j " << rounds << ")" << endl;
+					return 1;
+				}
 			}
-			
 		}
 
 		string SNP_file = "", SNPs_overlappingREMs = "", bedFile = "", fastaFile = "", currentRound = "";
@@ -549,14 +500,14 @@ int main(int argc, char *argv[]){
 			if (REMs != ""){
 		//		cout << "REMs" << endl;
 				//write header output file
-				randomResult << "SNP_position\tvar1\tvar2\trsID\tMAF\tpeakPosition\tTF\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tREM_positions\tensemblIDs\tgeneNames\tREMIds\tcoefficients\tpvalues_REM\tnormModelScore\tmeanDNase1Signal\tstdDNase1Signal\tconsortium\tversion\tSNP_strand\n";
+				randomResult << resultHeader;
 				//intersect SNPs with REMs
 				bc.intersect(REMs, SNP_file, SNPs_overlappingREMs, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
 				//parse bedfile 
 				io.parseRandomSNPs(SNP_file, SNPs_overlappingREMs, bedFile, r);
 			}else{
 				//write header output file
-				randomResult << "SNP_position\tvar1\tvar2\tsrID\tMAF\tpeakPosition\tTF-binding_position\tstrand\teffectedPositionInMotif\tpvalue_BindAff_var1\tpvalue_BindAff_var2\tlog_pvalueBindAffVar1_pvalueBindAffVar2\tpvalue_DiffBindAff\tSNP_strand\n";
+				randomResult << resultHeader;
 				//parse bedfile 
 				io.parseRandomSNPs(SNP_file, "", bedFile , r);
 			}
@@ -584,7 +535,7 @@ int main(int argc, char *argv[]){
 			string current_line = "";
 			for(int n = 0; n < numberSNPs; ++n){
 				getline(fasta, current_line, '\n'); //header
-				current_headers[n] = current_line.substr(1);
+				current_headers[n] = fastaName(current_line);
 				getline(fasta, current_line, '\n'); //header
 				current_sequences[n] = current_line;
 			}
@@ -594,132 +545,55 @@ int main(int argc, char *argv[]){
 			vector<tuple<double,string, string, string>>  currentResultAllSNPs; 
 			#pragma omp parallel for  num_threads(io.getNumberThreads())
 			for (int i = 0; i < numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
-				//unordered_map<double, double> preLog; //stores log of pvalues, avoid to recalculate them
-				
-				string currentResult = "";
 				//define variables
-				//vector<tuple<double, string, double>> current_overallResultMax; //stores max result
-				vector<tuple<double, string>> current_overallResultMax; //stores max result
+				vector<tuple<double, string>> current_overallResultMax; //stores max result per motif
 				unordered_map<string, string> current_helperOverallResult;
-				unordered_map<string, double> current_TFBindingValues;
-				string current_chr = "",  current_mutSeq = "", current_direction = "", current_genes = "", current_REMs = "", current_wildtypeSeq = ""; //stores if the SNP annotation was for the forward or the reversed strand
-				int current_posMut = 0, current_pos = 0; // position of the snp within the genome an relative within the given sequence
-	
+
 				//create mutated sequence
 				vector<string> current_splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
-				current_wildtypeSeq = current_sequences[i];
-				current_mutSeq = createMutatedSeq(current_headers[i], current_wildtypeSeq, current_splittedHeader); // check if all SNPs are fitting to the reference this is done within create mutated seq (also check for reverse strand)
-				current_pos = getMutatedPos(current_splittedHeader[0]);
-				current_chr = getChr(current_splittedHeader[0]);
-				current_posMut = 50; // since we considere 50 bp upstream and downstream the snp
-				for(int j = 0; j < randomSampling_numMotifs; ++j){ // iterate over all given motifs
-	
-				
-					//define vaiables
-					//necessary for determinig differential binding affinity
-					int current_posSigHit = 0, current_maxPosSigHit = 0, current_maxLenMotif = 0, current_sigHit = 0; //for MatrixSigHits
-					string current_direction = "", current_maxOrientation = "";
-					double current_diffBindingAff = 0.0, current_diffBinding = 0.0, current_log_ = 0.0, current_maxDiffBinding = 1.0, current_maxVal1 = 0.0, current_maxVal2 = 0.0, current_maxLog = 0.0;//maxDiffBinding for determinig best hit per seq
-					//variables store the information for the best hit er seq
-					vector<double>::iterator current_it; //iterater to determine min pos in first_seq and second_seq
-					vector<double> current_firstSeq; //stores binding affinity normal seq
-					vector<double> current_secondSeq; // stores binding affinity mutated seq
-		
+				string current_wildtypeSeq = current_sequences[i];
+				string current_mutSeq = createMutatedSeq(current_headers[i], current_wildtypeSeq, current_splittedHeader); // sets var1 in the wildtype sequence and returns the sequence with var2
+				int current_pos = getMutatedPos(current_splittedHeader[0]); // position of the snp within the genome
+				string current_chr = getChr(current_splittedHeader[0]);
+				for(int j = 0; j < randomSampling_numMotifs; ++j){ // iterate over all considered motifs
 					string current_motif = randomSampling_motifNames[j]; //set motif
-					int lenMotif = randomSampling_lenMotifs[j];
-					vector<double> pvalues = all_pvalues[current_motif]; //pvalues for current motif
-
-					//avoid to calculate TF scores for TFs which are not considered in the original data -> also don't need them in the background
-					//if (realData_TFs[current_motif] > 0){ // TODO: what threshold do we want to use here?
-				
-	
-						//calculate probabiblity for sequences of the current TF
-						if (probProSeq(randomSampling_PWMs[j], current_wildtypeSeq,  pvalues, pvalue, current_posMut, current_firstSeq) == 1){ //first_seq contains wildtype sequence
-							current_sigHit  = 1;
-						}
-						//calculate pvalue of the mutated sequence	
-						if (probProSeq(randomSampling_PWMs[j], current_mutSeq, pvalues, pvalue, current_posMut, current_secondSeq) == 1){ //second_seq contain mutated sequence
-							current_sigHit = 1;
-						}
-						//determine differential binding affinity for all sig kmers in wildtype and mutated seq
-						vector<pair<double, int>> current_allDiffBinding; 
-						int current_maxDiff_index = 0;
-						if (current_sigHit == 1){
-							for (int l = 0; l < current_firstSeq.size(); ++l){ 
-			
-								if (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue){
-									current_posSigHit = current_pos + floor(l/2); //deterime position of the hit	
-									current_diffBinding = differentialBindingAffinity(current_firstSeq[l], current_secondSeq[l], current_log_, scales[current_motif], lenMotif*2);
-								
-									//stores info maximal diff binding affinity
-									if (current_diffBinding <= current_maxDiffBinding){// and (current_firstSeq[l] <= pvalue or current_secondSeq[l] <= pvalue)){
-										current_maxDiffBinding = current_diffBinding;
-										current_maxPosSigHit = current_posSigHit;
-										current_maxOrientation = forwardOrReverse(l);
-										current_maxVal1 = current_firstSeq[l];
-										current_maxVal2 = current_secondSeq[l];
-										current_maxLog = current_log_;
-										current_maxLenMotif = lenMotif;
-										//current_maxDiff_index = l;
-									}
-								}	
-							}
-							//ouput maximal binding affinity for the current seq
-							current_overallResultMax.push_back(make_tuple(current_maxDiffBinding, current_motif));
-							string value = "";
-							if (current_maxOrientation  == "(f)"){
-								value =  current_chr + ':' + to_string(current_maxPosSigHit- current_maxLenMotif+1) + "-" + to_string(current_maxPosSigHit+1) + '\t' +  current_maxOrientation + '\t' + to_string( current_pos - (current_maxPosSigHit- current_maxLenMotif+1) +1) + '\t' +   to_string(current_maxVal1) + '\t' + to_string(current_maxVal2) + '\t' + to_string(current_maxLog) + '\t' +  to_string(current_maxDiffBinding);
-							}else{
-								value =  current_chr + ':' + to_string(current_maxPosSigHit- current_maxLenMotif+1) + "-" + to_string(current_maxPosSigHit+1) + '\t' +  current_maxOrientation + '\t' + to_string(current_maxPosSigHit+ 1 - current_pos) + '\t' +   to_string(current_maxVal1) + '\t' + to_string(current_maxVal2) + '\t' + to_string(current_maxLog) + '\t' +  to_string(current_maxDiffBinding);
-							}
-							current_helperOverallResult[current_motif] = value;
-							current_TFBindingValues[current_motif] = current_maxLog;
-						}
+					MotifHit hit = scoreMotif(randomSampling_PWMs[j], all_pvalues.at(current_motif), randomSampling_scales[j], randomSampling_lenMotifs[j], current_wildtypeSeq, current_mutSeq, pvalue, current_pos, current_motif, current_chr, nullptr);
+					if (hit.sigHit){
+						//ouput maximal binding affinity for the current seq
+						current_overallResultMax.push_back(make_tuple(hit.pvalue, current_motif));
+						current_helperOverallResult[current_motif] = formatHit(hit, current_chr, current_pos) + '\t';
 					}
-					//sort overall_result per seq and all TFs and store maximal one
-					string m = "";
-					double p = 0.0;
+				}
+				//sort overall_result per seq and all TFs and store maximal one
+				string m = "";
+				double p = 0.0;
 
-					//sort(current_overallResultMax.begin(), current_overallResultMax.end());
-					sort(current_overallResultMax.begin(), current_overallResultMax.end(), sortbyth);
-					for (int k = 0; k< current_overallResultMax.size(); ++k){
-						p = get<0>(current_overallResultMax[k]); //pvalue
-						m = get<1>(current_overallResultMax[k]); //motif name
+				//sort(current_overallResultMax.begin(), current_overallResultMax.end());
+				sort(current_overallResultMax.begin(), current_overallResultMax.end(), sortbyth);
+				for (int k = 0; k< current_overallResultMax.size(); ++k){
+					p = get<0>(current_overallResultMax[k]); //pvalue
+					m = get<1>(current_overallResultMax[k]); //motif name
 
-						if (REMs == ""){
-							//allows only one thread to write in the output 
-							#pragma omp critical
-							currentResultAllSNPs.push_back(make_tuple(p, m,current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m ,  current_helperOverallResult[m] + '\t' + current_splittedHeader[6] + '\n'));
-						}else{
-							//allows only one thread to write in the output 
-							#pragma omp critical
-							currentResultAllSNPs.push_back(make_tuple(p, m, current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m], current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n'));
-						}
+					if (REMs == ""){
+						//allows only one thread to write in the output 
+						#pragma omp critical
+						currentResultAllSNPs.push_back(make_tuple(p, m,current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + current_helperOverallResult[m], "\n"));
+					}else{
+						//allows only one thread to write in the output 
+						#pragma omp critical
+						currentResultAllSNPs.push_back(make_tuple(p, m, current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m], '\t' + current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n'));
 					}
+				}
 			}
 
 			//sort resultAllSNPs based on p-value 
-			double snpsXmotifs = numMotifs * numberSNPs; 
 			sort(currentResultAllSNPs.begin(), currentResultAllSNPs.end(),sortby);
-			//compute fdr
-			//cout << "number of tests: "  << snpsXmotifs << endl;
-			double rank = currentResultAllSNPs.size(); 			
-			double previous_pvalue = 1.0;
-
 			for (auto& elem : currentResultAllSNPs){ // get vector per entry
-	
-				//compute fdr
 				double p = get<0>(elem);
 				string m = get<1>(elem);
-				double helper = min(p*(snpsXmotifs/rank), previous_pvalue);
-				previous_pvalue = helper;
-				rank--;
-				//if (helper <= io.getPvalueDiff()){// and p <= io.getPvalueDiff()){
-				// for Jayas analysis
-				if (p <= io.getPvalueDiff()){// and p <= io.getPvalueDiff()){
-					#pragma omp critical
+				if (p <= io.getPvalueDiff()){ // cutoff based on the not corrected p-value (as for the input SNPs)
 					TF_counts[m] += 1; //count per round number of sig. TF hits
-					randomResult << get<2>(elem) << '\t' << to_string(helper) << '\t' << get<3>(elem); 
+					randomResult << get<2>(elem) << std::scientific << p << get<3>(elem); // same format as result.txt
 				}
 			}
 			randomResult.close();	
@@ -740,7 +614,7 @@ int main(int argc, char *argv[]){
 /*
 *input: path to a directory
 *output: vector that contains the names of all files of the directory
-*WATCH OUT: it contains two files that are not neccessary for further calcultions: . and .. (aktuell rausgenommen)
+*WATCH OUT: it contains two files that are not neccessary for further calcultions: . and .. (they are excluded)
 */
 vector<string> readDirectory(const char *path){
 
@@ -766,20 +640,6 @@ vector<string> readDirectory(const char *path){
 	return result;
 }
 
-/*
-/ splits string at given token (string befor token is returned, remaining line is shorter by the token)
-*/
-string getToken(string& line, char delim){
-	int pos = 0;
-	//cout << line << " " << line.find(delim) << endl;
-	if(((pos = line.find(delim)) != std::string::npos) || ((pos = line.find('\n')) != std::string::npos)){
-    		string token = line.substr(0, pos);
-    		line.erase(0, pos + 1);
-		return token;
-	}else{
-		throw invalid_argument ("invalid file format:" + line);
-	}
-}
 
 bool sortbyth(const tuple<double, string>& a, const tuple<double, string>& b){
     //return (get<2>(a) > get<2>(b));
@@ -807,6 +667,8 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 			maf = stod(getToken(line, ';'));
 		}catch (const std::out_of_range& oor){
 			maf = 0.0;	
+		}catch (const std::invalid_argument& ia){ // MAF not given as a number (e.g. "-") -> not given
+			maf = -1.0;
 		}
 		MAF.push_back(maf);
 	}
@@ -816,7 +678,7 @@ void determineMAFsForSNPs(string bedFile, vector<double>& MAF){
 
 /*
 / read MAF (from the header) and GC content (from the sequence) of the input SNPs from the fasta file (snpRegions.fa)
-/ the SNP is located at position 50 of the sequence (50bp + SNP + 50bp), the GC content is determined in a window of +- GC_FLANK bp
+/ the SNP is located at position SNV_FLANK of the sequence (SNV_FLANK bp + SNP + SNV_FLANK bp), the GC content is determined in a window of +- GC_FLANK bp
 / SNPs without GC content (no A, C, G, T in the window or unexpected sequence length) get GC = -1 and are sampled by MAF only
 */
 void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<double>& GC, vector<string>& warnings){
@@ -826,7 +688,7 @@ void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<dou
 	ifstream fasta(fastaFile); //open fasta file
 	while (getline(fasta, header, '\n')){
 		getline(fasta, seq, '\n');
-		header = header.substr(1) + '\n'; // chr:start-end;var1;var2;rsID;MAF;...
+		header = fastaName(header) + '\n'; // chr:start-end;var1;var2;rsID;MAF;...
 		snp = getToken(header, ';'); //chr:start-end
 		snp += ";" + getToken(header, ';'); //wildtype
 		snp += ";" + getToken(header, ';'); //mutant
@@ -835,14 +697,16 @@ void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<dou
 			maf = stod(getToken(header, ';'));
 		}catch (const std::out_of_range& oor){
 			maf = 0.0;
+		}catch (const std::invalid_argument& ia){ // MAF not given as a number (e.g. "-") -> not given
+			maf = -1.0;
 		}
 		MAF.push_back(maf);
 
-		if (seq.size() != 101){
+		if ((int)seq.size() != 2 * SNV_FLANK + 1){
 			gc = -1;
-			warnings.push_back("SNV " + snp + ": sequence length " + to_string(seq.size()) + " instead of 101, no GC content, sampled by MAF only");
+			warnings.push_back("SNV " + snp + ": sequence length " + to_string(seq.size()) + " instead of " + to_string(2 * SNV_FLANK + 1) + ", no GC content, sampled by MAF only");
 		}else{
-			gc = gcContent(seq, 50, GC_FLANK, numN, windowLength);
+			gc = gcContent(seq, SNV_FLANK, GC_FLANK, numN, windowLength);
 			if (gc == -1){
 				warnings.push_back("SNV " + snp + ": GC window contains only N, no GC content, sampled by MAF only");
 			}else if (numN > windowLength / 2){
@@ -858,47 +722,6 @@ void determineMAFsAndGCForSNPs(string fastaFile, vector<double>& MAF, vector<dou
 /*
 / read or determine MAF distribution of the input SNPs
 */
-//TODO: what to do if MAF is not given? 
-void determineMAFsForLeadSNPs(string bedFile, vector<double>& MAF, vector<string>& leadSNPs){
-	string line = "";
-	double maf = 0.0;
-	string helper_maf = "";
-	string info = "";
-	int counter = 0;
-	ifstream bedfile(bedFile); //open sequence file
-	while (getline(bedfile, line, '\n')){ // for each line extract overlapping SNPs
-		getToken(line, '\t'); //skip chr
-		getToken(line, '\t'); //skip start
-		getToken(line, '\t'); //skip end
-		info = getToken(line, ';'); //chr:start-end
-		//cout << info << endl;
-		info = info + '\t' +   getToken(line, ';'); // wildtype 
-		//cout << info << endl;
-		info = info + '\t' +  getToken(line, ';'); // mutatant
-		//cout << info << endl;
-		info = info + '\t' +  getToken(line, ';'); // rsID
-		//cout << info << endl;
-		
-		helper_maf = getToken(line, ';');
-		info = info + '\t' + helper_maf;
-		
-		try{ //throws an error when MAF is smaller than double precisoins allows -> set after		
-			maf = stod(helper_maf);
-		}catch (const std::out_of_range& oor){
-			maf = -1.0;	
-		}catch (const std::invalid_argument inv){
-			maf = -1.0;	
-		}
-		if (find(leadSNPs.begin(), leadSNPs.end(), info) != leadSNPs.end()){
-			counter ++;
-
- 			MAF.push_back(maf);
-		}
-	}
-	cout << "Number of lead SNPs: " << MAF.size() << endl;
-	bedfile.close();
-	return;
-}
 
 vector<double> readFrequence(string frequence){
 
@@ -951,11 +774,11 @@ vector<Matrix<double>> PFMsToPWMs( vector<string>& PWM_files, vector<double>& fr
 	return PWMs;
 }
 
-int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double pvalue, int pos_snp, vector<double>& pvalue_seq){
+int probProSeq(Matrix<double>& PWM, const string& line, const vector<double>& pvalues, double pvalue, int pos_snp, vector<double>& pvalue_seq){
 
 	//cout << line << endl;
-	int min_ = pos_snp -50;
-	int max_ = pos_snp + 50;
+	int min_ = pos_snp - SNV_FLANK;
+	int max_ = pos_snp + SNV_FLANK;
 
 	int length_motif = PWM.ncol();
 	int start_seq = max(pos_snp - length_motif, min_-1);
@@ -966,8 +789,8 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
         double prob_comp = 0.0; // stores prob for each k_mer of the complement
 	int result = 0; //1 if a sig occurs, 0 if not
 
-	string::iterator start = line.begin() - length_motif + 1;
-	string::iterator end = line.begin();
+	string::const_iterator start = line.begin() - length_motif + 1;
+	string::const_iterator end = line.begin();
 
 	double rounder = 1/EPSILON;
 	int size_pvalues = pvalues.size() -1;
@@ -980,7 +803,7 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
 	
 	double pvalue_prob = 0.0;
 	double pvalue_prob_comp = 0.0;
-        for(int i = 0; i < line.size() ; ++i){ // da index  bei 0 anfaengt oder?			
+        for(int i = 0; i < line.size() ; ++i){ // index starts at 0			
 		if (line[i] == 'N' || line[i] == 'n'){
 			check = length_motif; 
 		}
@@ -989,8 +812,8 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
 
 			prob_comp = probKmerComplement(PWM,start, end); // determine prob for complement
 
-			pos = round(size_pvalues -(rounder*prob)); //berechnet an welcher position im vector der pvalue für prob steht
-			pos_comp = round(size_pvalues -(rounder*prob_comp)); //berechnet an welcher position im vector der pvalue für prob steht
+			pos = round(size_pvalues -(rounder*prob)); //position of the p-value of prob in the vector
+			pos_comp = round(size_pvalues -(rounder*prob_comp)); //position of the p-value of prob in the vector
 
 			pvalue_prob = pvalues[pos];
 			pvalue_seq.push_back(pvalue_prob);
@@ -1025,10 +848,10 @@ int probProSeq(Matrix<double>& PWM, string line, vector<double>& pvalues, double
 *Input: PWM, iterators that point to the first letter of the k_mer and the last
 *Output: probability of the actual k_mer
 */
-double probKmer(Matrix<double>& PWM,string::iterator start, string::iterator end){
+double probKmer(Matrix<double>& PWM,string::const_iterator start, string::const_iterator end){
 	//cout << "forward" << endl;
 	
-        double prob = 0.0; //muss 0.0 sein bei plus
+        double prob = 0.0; //sum of the PWM entries, starts at 0.0
 	int counter = 1;
 	for(auto i = start; i != end+1; i++){ //iterators over k_mer
 //		cout << POSITION[((*i) & 0x0f)] << " " ; 
@@ -1041,10 +864,10 @@ double probKmer(Matrix<double>& PWM,string::iterator start, string::iterator end
         return prob;
 }
 //same as for probKMer, only different iterates in reverse order and determne complement for actual letter
-double probKmerComplement(Matrix<double>& PWM,string::iterator start, string::iterator end){
+double probKmerComplement(Matrix<double>& PWM,string::const_iterator start, string::const_iterator end){
 
 	//cout << "reverse" << endl;
-        double prob = 0.0; //muss 0.0 sein bei plus
+        double prob = 0.0; //sum of the PWM entries, starts at 0.0
 	int counter = 1;
 	for(auto i = end; i != start-1; i--){// iterator in reverse order
 //		cout << COMPLEMENT[((*i) & 0x0f)] << " ";
@@ -1073,82 +896,16 @@ string getChr(string mut_pos){
 	return chr;
 }
 
-int getSeqStart(string header){
-
-	int del = header.find(":");
-	int del2 = header.find("-");
-	int start = stoi(header.substr(del+ 1, del2-del));
-//	cout << "start: " << start << endl;
-	return start;
-}
-
-int getSeqEnd(string header){
-
-	int del = header.find(":");
-	int del2 = header.find("-");
-	int end = stoi(header.substr(del2+1));
-//	cout << "end: " << end << endl;
-	return end;
-}
-
 string createMutatedSeq(string header, string&  seq, vector<string>& splittedHeader){
 
-	map<char , char> complement = {{'A','T'}, {'C', 'G'}, {'G', 'C'}, {'T', 'A'}}; //find complement of a base
-	splittedHeader = parseHeader(header, ";"); //chr:start, var1, var2 
-	char var1 = toupper(splittedHeader[1][0]); //cast to char
-	char var2 = toupper(splittedHeader[2][0]); //cast to char
-	int pos = getMutatedPos(splittedHeader[0]);
-	string chr = getChr(splittedHeader[0]);	
-	string direction;
+	splittedHeader = parseHeader(header, ";"); //chr:start-end, var1, var2, rsID, MAF, ...
+	char var1 = toupper(splittedHeader[1][0]);
+	char var2 = toupper(splittedHeader[2][0]);
+	// the SNV is at position SNV_FLANK of the plus-strand sequence; var1 (wildtype allele) is set in seq, var2 (alternative
+	// allele) in the returned sequence; alleles not matching the reference are reported after reading the sequences
 	string result = seq;
-	int start = pos - 50;
-	int end = pos + 50;
-
-	int mut = pos - start; //position of the mutation in relation to the sequence length (should be at position 50)
-//	cout << mut << endl;
-	// the previous code is not working if non of the annotated alleles is observed in the wildtype.... 
-	seq[mut] = var1;
-	result[mut] = var2;	
-	direction = "forward";
-/*
-	//check for forward strand
-	if (toupper(seq[mut]) == var1){ //forward strand var1 in reference seq
-	//	cout << "var1 is reference genome forward" << endl;
-		direction = "forward";
-		result[mut] = var2;
-	} 
-	if (toupper(seq[mut]) == var2){ // forward strand var2 in reference seq
-	//	cout << "var2 is reference genome forward" << endl;
-		direction = "forward";
-		//result[mut] = var1;
-		seq[mut] = var1; // since result is a copy from the original seq ->  result[mut] = var2
-	//check for reverse strand
-	}else if (toupper(seq[mut]) == complement[var1]){ //reverse strand var1 in reference seq
-		cout << "var1 is reference genome reverse" << endl;
-		direction = "reverse";
-		result[mut] = complement[var2];
-	}else if (toupper(seq[mut]) == complement[var2]){ //reverse strand var2 in refernece seq
-		cout << "var2 is reference genome reverse" << endl;
-		direction = "reverse";
-		result[mut] = complement[var1];
-	}else{
-		cout << "letter at position 50 (0-based): " << seq[mut] << " "  << chr << ":" << pos << " seq: " << seq << " var1: " << var1 << " var2: " << var2 << " header " << header << endl;
-	//	throw invalid_argument("mutation passt nicht!");
-		cout << "da stimmt was nicht !!!!" << endl;
-	}*/
-	splittedHeader.push_back(direction);
-	return result;
-}
-
-double cdf_laplace(double my, double beta, double value){
-
-	double result = 0.0;
-	if (value < my){
-		result = 0.5 * (exp(((value - my)/beta)));
-	}else{ //value >= location
-		result = 1 - (0.5 * (exp(-((value - my)/beta))));
-	}
-	//cout << "pvalue diffBind: " << result << endl;
+	seq[SNV_FLANK] = var1;
+	result[SNV_FLANK] = var2;
 	return result;
 }
 
@@ -1172,56 +929,10 @@ double cdf_laplace_abs_max(double scale, double numberKmers, double value){
 }
 
 
-
-double differentialBindingAffinityBackground(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers){
-
-	double div = 0.0;
-	log_ = 0.0;
-	double pvalue = 0.0;
-
-	double log_first = 0.0, log_second = 0.0;
-
-	auto found = pre_log.find(first_elem);
-
-	//cout <<"first elem: " << first_elem << endl;
-	//cout <<"second elem: " << second_elem << endl;
-	if (found != pre_log.end()){ //check if the log of div was calculated bevore
-		log_first = found->second;
-	//	#pragma omp atomic
-	//	counter++;
-	}else{
-		log_first = log(first_elem);
-		helper_preLog[first_elem] = log_first;		
-	}
-	found = pre_log.find(second_elem);
-	if (found != pre_log.end()){ //check if the log of div was calculated bevore
-		log_second = found->second;
-	//	#pragma omp atomic
-	//	counter++;
-	}else{
-		log_second = log(second_elem);
-		helper_preLog[second_elem] = log_second;		
-	}
-	//}
-	log_ = log_first-log_second;
-	//cout <<"log diffBinding: " << log_ << endl;
-
-	//determine pvalue old versions
-	//symmetric laplace(0,1) 
-	//pvalue = 2* cdf_laplace(0.0, 1.0, -abs(log_));
-	//pvalue = 2* cdf_laplace(0.0, 0.368, -abs(log_));
-	//determine pvalue
-	pvalue = cdf_laplace_abs_max(scale, numberKmers, log_);
-	//cout << "pvalue: " << pvalue << endl;
-	return pvalue;	
-}
-
-
 //double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log, unordered_map<double, double>& helper_preLog, double& log_, double& scale, int numberKmers){
 //double differentialBindingAffinity(double first_elem, double second_elem, unordered_map<double, double>& pre_log,  double& log_, double& scale, int numberKmers, int& round){
 double differentialBindingAffinity(double first_elem, double second_elem,  double& log_, double& scale, int numberKmers){
 
-	double div = 0.0;
 	log_ = 0.0;
 	double pvalue = 0.0;
 
@@ -1236,6 +947,71 @@ double differentialBindingAffinity(double first_elem, double second_elem,  doubl
 	pvalue = cdf_laplace_abs_max(scale, numberKmers, log_);
 	//cout << "pvalue: " << pvalue << endl;
 	return pvalue;	
+}
+
+/*
+* scores one motif for one SNV: binding p-values of all k-mers overlapping the SNV in the wildtype and the mutated sequence,
+* differential binding score and its p-value for all k-mers with a binding p-value <= pvalueThreshold in one of the sequences,
+* returns the k-mer with the maximal differential binding score (smallest p-value)
+* allOutput: if given, all computed differential binding scores are appended (flag -a)
+*/
+MotifHit scoreMotif(Matrix<double>& PWM, const vector<double>& pvalues, double scale, int lenMotif, const string& wildtypeSeq, const string& mutSeq, double pvalueThreshold, int pos, const string& motif, const string& chr, string* allOutput){
+
+	MotifHit hit;
+	vector<double> firstSeq; //binding p-values wildtype seq (forward and reverse strand alternating)
+	vector<double> secondSeq; //binding p-values mutated seq
+	if (probProSeq(PWM, wildtypeSeq, pvalues, pvalueThreshold, SNV_FLANK, firstSeq) == 1){
+		hit.sigHit = true;
+	}
+	if (probProSeq(PWM, mutSeq, pvalues, pvalueThreshold, SNV_FLANK, secondSeq) == 1){
+		hit.sigHit = true;
+	}
+	if (!hit.sigHit){
+		return hit;
+	}
+	int posSigHit = 0;
+	double diffBinding = 0.0, log_ = 0.0;
+	for (int l = 0; l < firstSeq.size(); ++l){ 
+		if (firstSeq[l] <= pvalueThreshold or secondSeq[l] <= pvalueThreshold){
+			posSigHit = pos + floor(l/2); //deterime position of the hit	
+			diffBinding = differentialBindingAffinity(firstSeq[l], secondSeq[l], log_, scale, lenMotif*2);
+			if (diffBinding <= hit.pvalue){ // store the maximal differential binding score
+				hit.pvalue = diffBinding;
+				hit.maxPosSigHit = posSigHit;
+				hit.orientation = forwardOrReverse(l);
+				hit.val1 = firstSeq[l];
+				hit.val2 = secondSeq[l];
+				hit.log = log_;
+				hit.lenMotif = lenMotif;
+			}
+			if (allOutput != nullptr){
+				allOutput->append(motif + '\t' + chr + ":" + to_string(posSigHit) + forwardOrReverse(l) + '\t' + to_string(firstSeq[l]) +  "\t" +  to_string(secondSeq[l]) +  "\t" + to_string(log_) + '\t' +  to_string(diffBinding)  + '\n');
+			}
+		}
+	}
+	return hit;
+}
+
+/*
+* output columns of a hit: TF-binding_position, strand, effectedPositionInMotif, pvalue_BindAff_var1, pvalue_BindAff_var2, log ratio
+*/
+string formatHit(const MotifHit& hit, const string& chr, int pos){
+	int start = hit.maxPosSigHit - hit.lenMotif + 1;
+	string posInMotif = (hit.orientation == "(f)") ? to_string(pos - start + 1) : to_string(hit.maxPosSigHit + 1 - pos);
+	return chr + ':' + to_string(start) + "-" + to_string(hit.maxPosSigHit + 1) + '\t' + hit.orientation + '\t' + posInMotif + '\t' + to_string(hit.val1) + '\t' + to_string(hit.val2) + '\t' + to_string(hit.log);
+}
+
+/*
+* name of a FASTA record from its header line (">name"); newer bedtools versions (getfasta -name) append the
+* coordinates as "name::chr:start-end", which would otherwise end up in the last field of the name (e.g. peakPosition)
+*/
+string fastaName(const string& headerLine){
+	string name = headerLine.substr(1);
+	size_t pos = name.find("::");
+	if (pos != string::npos){
+		name = name.substr(0, pos);
+	}
+	return name;
 }
 
 string forwardOrReverse(int distance_){
@@ -1261,12 +1037,6 @@ vector<string> parseHeader(string header, string delim){
 }
 
 void writeHeadersOutputFiles(bool writeOutput, string& currentOutput,  string header, string seq, string mutSeq, vector<string>& splittedHeader, int& pos, string& chr){
-
-	string var1 = splittedHeader[1]; //cast to char
-	string var2 = splittedHeader[2]; //cast to char
-	int start = pos - 50;
-	int end = pos + 50;
-	int mut = pos - start; //position of the mutation in relation to the sequence length (should be at position 51)
 
 	if (writeOutput){
 		currentOutput.append("\n#\tinfo: " + header + "\n#\twildtyp: " + seq + "\n" + "#\tmutated: " +  mutSeq + "\n\n.\tpos\tBindAff_Var1\tBindAff_Var2\tlog(div)\tpvalue_diffBindAff\n");

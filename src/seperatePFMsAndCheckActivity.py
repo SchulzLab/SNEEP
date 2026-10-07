@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys, os, random, math
 
@@ -331,7 +331,7 @@ else:
 					TF2 = helper[1].strip()
 				else: 
 					TF = helper.strip()
-				#TODO nachsehen warum fast keien TFs ausgeschlossen werden	
+				#TODO check why hardly any TFs are excluded	
 				if TF in name_ensemble.keys() and name_ensemble[TF] in activeTFs and activeTFs[name_ensemble[TF]] > threshold:
 					#check if it is a combined TF like ARNT::STAT2
 					if TF2 != "":

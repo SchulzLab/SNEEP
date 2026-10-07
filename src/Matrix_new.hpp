@@ -33,7 +33,7 @@ class Matrix{
 	Matrix();
 	Matrix(int num_row, int num_col); // default initalize matrix with 0
 	Matrix(int num_row, int num_col, T d); // initialize matrix with ds
-	~Matrix<T>(); // deconstructor
+	~Matrix<T>(); // destructor
 	Matrix(const Matrix<T>&); // copyconstructor
 	int nrow();
 	int ncol();
@@ -66,7 +66,7 @@ template<typename T> Matrix<T>::Matrix(int num_row, int num_col, T d)
 : num_row_(num_row), num_col_(num_col), matrix_(num_row_*num_col_, d)
 {
 }
-//Deconstructor	
+//Destructor	
 template<typename T> Matrix<T>::~Matrix<T>()
 {
 }
@@ -93,8 +93,8 @@ template<typename T> int Matrix<T>::ncol(){
 template<typename T> T& Matrix<T>::operator()(int row, int col){
 
 	//check if index out of range
-	if ((row > num_row_) or (col > num_col_))
-		 throw range_error("index out of range!!!");
+	if (row < 1 or col < 1 or row > num_row_ or col > num_col_)
+		 throw range_error("matrix index out of range: row " + to_string(row) + ", col " + to_string(col) + " of " + to_string(num_row_) + "x" + to_string(num_col_));
 	return(matrix_[((row-1)*(num_col_)) + col-1]);	
 }
 

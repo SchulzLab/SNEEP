@@ -1,152 +1,34 @@
+# builds SNEEP (differentialBindingAffinity_multipleSNPs); the C++ code is header-only, i.e. one compilation unit
+# getSNPInfo.cpp (preprocessing of the dbSNP file, see docs flag -k) is built separately if needed:
+#	g++ -std=c++11 -O2 -fopenmp getSNPInfo.cpp -o getSNPInfo
 
-#sources
-SRC =  	Matrix_new.cpp \
-	pvalue_copy.cpp  \
-	callBashCommand.cpp \
-	HandleInOutput.cpp \
-	differentialBindingAffinity_multipleSNPs.cpp \
-	sampleRandomRsIDs2.cpp 
+HEADERS = Matrix_new.hpp pvalue_copy.hpp callBashCommand.hpp HandleInOutput.hpp sampleRandomRsIDs2.hpp stringUtils.hpp
 
 platform=$(shell uname -s)
+
+.PHONY: all clean
+
+all: differentialBindingAffinity_multipleSNPs
 
 ifeq ($(platform), Darwin)
 
 CC = clang++
-
-CFLAGS =  -std=c++11  -Xpreprocessor -fopenmp -lomp
-#CFLAGS = -std=c++11  -stdlib=libc++ 
+CFLAGS = -std=c++11 -O2 -Xpreprocessor -fopenmp -lomp
 LDFLAGS = -stdlib=libc++ "-L/usr/local/opt/libomp/lib"
-CPPFLAGS="-I/usr/local/opt/libomp/include"
+CPPFLAGS = "-I/usr/local/opt/libomp/include"
 
-all: $(SRC) Makefile
-	$(CC) Matrix_new.cpp $(CFLAGS) $(LDFLAGS) -o Matrix
-	$(CC) pvalue_copy.cpp $(CFLAGS) $(LDFLAGS) -o pvalue
-	$(CC) callBashCommand.cpp $(CFLAGS) $(LDFLAGS) -o callBashCommand
-	$(CC) HandleInOutput.cpp $(CFLAGS) $(LDFLAGS) -o HandleInOutput
-	$(CC) sampleRandomRsIDs2.cpp $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) -o randomRsIds_2.0
+differentialBindingAffinity_multipleSNPs: differentialBindingAffinity_multipleSNPs.cpp $(HEADERS) Makefile
 	$(CC) differentialBindingAffinity_multipleSNPs.cpp -lc $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPs
 
-HandleInOutput.cpp : HandleInOutput.hpp
-Matrix_new.cpp  : Matrix_new.hpp
-pvalue_copy.cpp : pvalue_copy.hpp Matrix_new.hpp
-callBashCommand.cpp : callBashCommand.hpp
-sampleRandomRsIDs2.cpp: callBashCommand.hpp sampleRandomRsIDs2.hpp	
-differentialBindingAffinity_multipleSNPs.cpp : Matrix_new.hpp pvalue_copy.hpp callBashCommand.hpp HandleInOutput.hpp sampleRandomRsIDs2.hpp
-	
 else
 
-CC = g++ 
-CFLAGS = -std=c++11 -fopenmp 
-CFLAGS_ = -std=c++11 -fopenmp 
-LDFLAGS = -static
-LFLAG = -I/TL/opt/include
-lFLAG = -lcurl
-IFLAG = -I json/include/ # bedtools2/src/utils/driver/ bedtools2/src/utils/version/
+CC = g++
+CFLAGS = -std=c++11 -O2 -fopenmp
 
-#for bedtools (copy pased form the bedtools 2 makefile)
-#SRC_DIR= bedtools2/src
-#HTSDIR = $(SRC_DIR)/utils/htslib
-
-
-#SUBDIRS = $(SRC_DIR)/annotateBed \
-		  $(SRC_DIR)/bamToBed \
-		  $(SRC_DIR)/bamToFastq \
-		  $(SRC_DIR)/bedToBam \
-		  $(SRC_DIR)/bedpeToBam \
-		  $(SRC_DIR)/bedToIgv \
-		  $(SRC_DIR)/bed12ToBed6 \
-		  $(SRC_DIR)/closestFile \
-		  $(SRC_DIR)/clusterBed \
-		  $(SRC_DIR)/complementFile \
-		  $(SRC_DIR)/coverageFile \
-		  $(SRC_DIR)/expand \
-		  $(SRC_DIR)/fastaFromBed \
-		  $(SRC_DIR)/flankBed \
-		  $(SRC_DIR)/genomeCoverageBed \
-		  $(SRC_DIR)/getOverlap \
-		  $(SRC_DIR)/groupBy \
-		  $(SRC_DIR)/intersectFile \
-		  $(SRC_DIR)/fisher \
-		  $(SRC_DIR)/jaccard \
-		  $(SRC_DIR)/linksBed \
-		  $(SRC_DIR)/maskFastaFromBed \
-		  $(SRC_DIR)/mapFile \
-		  $(SRC_DIR)/mergeFile \
-		  $(SRC_DIR)/multiBamCov \
-		  $(SRC_DIR)/multiIntersectBed \
-		  $(SRC_DIR)/nucBed \
-		  $(SRC_DIR)/pairToBed \
-		  $(SRC_DIR)/pairToPair \
-		  $(SRC_DIR)/randomBed \
-		  $(SRC_DIR)/regressTest \
-		  $(SRC_DIR)/reldist \
-		  $(SRC_DIR)/sampleFile \
-		  $(SRC_DIR)/shiftBed \
-		  $(SRC_DIR)/shuffleBed \
-		  $(SRC_DIR)/slopBed \
-		  $(SRC_DIR)/sortBed \
-		  $(SRC_DIR)/spacingFile \
-		  $(SRC_DIR)/split \
-		  $(SRC_DIR)/subtractFile \
-		  $(SRC_DIR)/summaryFile \
-		  $(SRC_DIR)/tagBam \
-		  $(SRC_DIR)/unionBedGraphs \
-		  $(SRC_DIR)/windowBed \
-		  $(SRC_DIR)/windowMaker
-
-#UTIL_SUBDIRS =	$(SRC_DIR)/utils/FileRecordTools \
-				$(SRC_DIR)/utils/FileRecordTools/FileReaders \
-				$(SRC_DIR)/utils/FileRecordTools/Records \
-				$(SRC_DIR)/utils/bedFile \
-				$(SRC_DIR)/utils/BinTree \
-				$(SRC_DIR)/utils/version \
-				$(SRC_DIR)/utils/bedGraphFile \
-				$(SRC_DIR)/utils/chromsweep \
-				$(SRC_DIR)/utils/Contexts \
-				$(SRC_DIR)/utils/general \
-				$(SRC_DIR)/utils/gzstream \
-				$(SRC_DIR)/utils/fileType \
-				$(SRC_DIR)/utils/bedFilePE \
-				$(SRC_DIR)/utils/KeyListOps \
-				$(SRC_DIR)/utils/NewChromsweep \
-				$(SRC_DIR)/utils/sequenceUtilities \
-				$(SRC_DIR)/utils/tabFile \
-				$(SRC_DIR)/utils/BamTools-Ancillary \
-				$(SRC_DIR)/utils/BlockedIntervals \
-				$(SRC_DIR)/utils/Fasta \
-				$(SRC_DIR)/utils/VectorOps \
-				$(SRC_DIR)/utils/GenomeFile \
-				$(SRC_DIR)/utils/RecordOutputMgr \
-				$(SRC_DIR)/utils/ToolBase \
-				$(SRC_DIR)/utils/driver
-
-#INCLUDES_BEDTOOLS =		$(addprefix -I,$(SUBDIRS) $(UTIL_SUBDIRS)) \
-				-I$(SRC_DIR)/utils/BamTools/include \
-				-I$(HTSDIR) \
-				-I$(SRC_DIR)/utils/lineFileUtilities \
-				-I$(SRC_DIR)/utils/Point \
-				-I$(SRC_DIR)/utils/stringUtilities \
-				-lz
-
-
-
-all: $(SRC) Makefile
-	$(CC) Matrix_new.cpp $(CFLAGS) $(LDFLAGS) -o Matrix
-#	$(CC) differentialBindingAffinity.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity
-#	$(CC) determineSignificantHitsWithoutDifferentialBindingAffinity.cpp $(CFLAGS) $(LDFLAGS) -o determineSignificantHitsWithoutDifferentialBindingAffinity
-	$(CC) pvalue_copy.cpp $(CFLAGS) $(LDFLAGS) -o pvalue
-	$(CC) callBashCommand.cpp $(CFLAGS) $(LDFLAGS) -o callBashCommand
-	$(CC) HandleInOutput.cpp $(CFLAGS) $(LDFLAGS) -o HandleInOutput
-#	#$(CC) buffering.cpp $(CFLAGS) $(LDFLAGS) -o buffering $(INCLUDES_BEDTOOLS)
-#	#$(CC) sampleRandomRsIDs.cpp $(CFLAGS_)     -o randomRsIds $(LFLAG) $(lFLAG) $(IFLAG) $(INCLUDES_BEDTOOLS)
-	$(CC) sampleRandomRsIDs2.cpp $(CFLAGS) -o randomRsIds_2.0 
-#	$(CC) differentialBindingAffinity_multipleSNPs.cpp $(CFLAGS) -o differentialBindingAffinity_multipleSNPs $(LFLAG) $(lFLAG) $(IFLAG) $(INCLUDES_BEDTOOLS)
-	$(CC) differentialBindingAffinity_multipleSNPs.cpp $(CFLAGS_) -o differentialBindingAffinity_multipleSNPs
-#	$(CC) differentialBindingAffinity_multipleSNPsSEMs.cpp $(CFLAGS) $(LDFLAGS) -o differentialBindingAffinity_multipleSNPsSEMs
-#	$(CC) getSNPInfo.cpp $(CFLAGS_)  -o getSNPInfo $(LFLAG) $(lFLAG) $(IFLAG)
-#	$(CC) checkDistribution.cpp $(CFLAGS)  -o checkDistribution
+differentialBindingAffinity_multipleSNPs: differentialBindingAffinity_multipleSNPs.cpp $(HEADERS) Makefile
+	$(CC) differentialBindingAffinity_multipleSNPs.cpp $(CFLAGS) -o differentialBindingAffinity_multipleSNPs
 
 endif
 
 clean:
-	-/bin/rm -f core *.o *~
+	-/bin/rm -f core *.o *~ differentialBindingAffinity_multipleSNPs

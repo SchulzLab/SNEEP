@@ -8,7 +8,9 @@ In the following, we outline all optional parameters that can be used to run SNE
 Flag -o: Specify an output folder
 ===================================
   
-As a default, the result of our pipeline is stored within the folder SNEEP_output/.  Using the flag -o, a user-defined path for the output folder can be given. Note that if you set this flag, it must be given as first argument. The (potential) content of the output folder is automatically overwritten when running SNEEP.
+As a default, the result of our pipeline is stored within the folder SNEEP_output/.  Using the flag -o, a user-defined path for the output folder can be given (at any position among the optional parameters, with or without a final /). 
+
+The output folder must either be empty (or not exist yet) or contain the output of a former SNEEP run (recognized by the file info.txt). In the latter case, the former output is deleted. If the folder contains other files, SNEEP stops with an error message and does not change the folder. This prevents deleting other data by mistake, e.g., with -o . or a mistyped path.
 
 Flag -n: Number of threads
 ==========================
@@ -30,13 +32,24 @@ The p-value threshold for D\ :sub: `max` is set to 0.01 by default. In our bench
 
 Flag -k: dbSNP database (dbSNPs_sorted.txt.gz)
 =============================================== 
-To identify TFs that are more often affected by the given data than one would expect from random data, SNEEP can perform a statistical assessment to compare the results against proper random controls. To do so, the pipeline randomly samples SNPs from the `dbSNP database <https://www.ncbi.nlm.nih.gov/snp/>`_ and rerun the analysis on these SNPs. 
-To sample the SNPs in a fast and efficient manner, we provided a file (in our `Zenodo repository <https://zenodo.org/record/4892591>`_ containing the SNPs of the dbSNP database.  The file is a slightly modified version of the `publicly available one <ttps://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/>`_ (file GCF_000001405.38). In detail, 
+To identify TFs that are more often affected by the given data than one would expect from random data, SNEEP can perform a statistical assessment to compare the results against proper random controls. To do so, the pipeline randomly samples SNPs from the `dbSNP database <https://www.ncbi.nlm.nih.gov/snp/>`_ and rerun the analysis on these SNPs. The random SNPs are matched to the minor allele frequency (MAF) distribution of the input SNPs (bins of width 0.01) and, optionally, to their GC content (flag -s).
+To sample the SNPs in a fast and efficient manner, we provided a file (in our `Zenodo repository <https://zenodo.org/record/4892591>`_ containing the SNPs of the dbSNP database.  The file is a slightly modified version of the `publicly available one <https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/>`_ (file GCF_000001405.38). In detail, 
 
--	all SNPs overlapping with a protein-coding region were removed (annotation of the `human genome (GRCh38), version 36 (Ensembl 102) <https://www.gencodegenes.org/human/release_36.html>`_), (TODO: remove this sentence when zenodo dir is updated!)
 -	all information not important for SNEEP were removed,
 -	mutations longer than 1 bp were removed,
 -	and we sorted SNPs according to their MAF distribution in ascending order. 
+
+In older versions of the file (dbSNP build 154), all SNPs overlapping with a protein-coding region were removed (annotation of the `human genome (GRCh38), version 36 (Ensembl 102) <https://www.gencodegenes.org/human/release_36.html>`_). The newer version (dbSNP build 157) keeps these SNPs and additionally contains the GC content around each SNP, which is needed for flag -s.
+
+.. TODO: adapt this section when the file of dbSNP build 157 (with GC content) is available on Zenodo.
+
+The file is tab-separated, sorted by the MAF (first column), and contains one line per SNP:
+
+.. code-block:: console
+
+  MAF  chr  start  end  ref  alt  rsID  MAF  GC
+
+where MAF is -1 if no allele frequency is given in dbSNP, alt can hold several alleles separated by commas, and GC (only in the newer version) is the GC content in a window of +- 30 bp around the SNP: (#C + #G) / (#A + #C + #G + #T), lower case bases are counted and N is excluded (-1 if the window contains no A, C, G or T). The file is created with src/getSNPInfo.cpp from the dbSNP VCF file and the genome (getSNPInfo <dbSNP VCF> <outputDir> <genome.fa> [numThreads]); since this takes very long, we recommend to use the provided file.
 
 Flag -r and -g: Epigenetic interactions
 =============================================== 
@@ -81,6 +94,10 @@ Flag -j: Number of sampled background SNP sets
 
 With this flag, the number of background rounds can be specified. Default: -j 0.
 
+Flag -i: Use already sampled random SNPs
+==========================================
+Instead of sampling the random SNPs from the dbSNP file (-k), already sampled ones can be given, e.g., the directory sampling/ of a former SNEEP run. The directory must contain the files randomSNPs_0.txt, ..., randomSNPs_<j-1>.txt for the number of rounds given with -j; -k is then not needed. The directory is only read: all files of the background rounds (e.g., randomResult_<round>.txt) are written to <outputDir>/sampling/ as for sampled SNPs.
+
 Flag -l: Reproducible results for random background analysis
 ==============================================================
 To reproduce the results of the random background analysis, we recommend the use of a specific seed variable. Default: -l 1. 
@@ -88,3 +105,22 @@ To reproduce the results of the random background analysis, we recommend the use
 Flag -q:  TF count
 =====================
 This flag allows us to exclude TFs from the background sampling that do not exceed a TF count. Default: -q 0
+
+Flag -s: Match the GC content in the background sampling
+=========================================================
+If -s is set to true (also accepted: 1), the random SNPs are matched not only to the MAF but also to the GC content of the input SNPs. Default: -s false.
+
+- The GC content of an input SNP is computed from its sequence (<outputDir>/snpRegions.fa) in a window of +- 30 bp around the SNP, exactly as for the dbSNP file (see flag -k): (#C + #G) / (#A + #C + #G + #T), lower case bases are counted, N is excluded, and the reference base at the SNP position is included.
+- The random SNPs are sampled per combination of MAF bin (width 0.01) and GC bin (width 0.05).
+- The dbSNP file (flag -k) must contain the GC content (column 9, newer version of the file); otherwise SNEEP stops with an error message.
+- The flag has no effect if the random SNPs are given (-i) or no background sampling is performed (-j 0); SNEEP then prints a warning.
+
+Each background round always contains exactly as many SNPs as the input. If a bin cannot be filled as intended, SNEEP uses a fallback and writes a warning to the console and to info.txt (once per bin, not per round):
+
+- more than half of the GC window of an input SNP is N: warning only, the GC content might not be meaningful,
+- the GC window of an input SNP contains no A, C, G or T: this SNP is matched by MAF only,
+- a MAF x GC bin contains fewer dbSNP SNPs than needed: each dbSNP SNP is taken once, the remaining ones are sampled with replacement,
+- a GC bin is empty: the SNPs are sampled from the nearest non-empty GC bin within the same MAF bin (random choice if two bins are equally near); if the MAF bin has no SNP with GC content, by MAF only,
+- a MAF bin of the input does not exist in the dbSNP file (e.g., MAF > 0.5): the nearest MAF bin is used.
+
+With -s false, the random SNPs are identical to those of former SNEEP versions (same seed -l), except for the rare case of an empty MAF bin in the dbSNP file, where former versions assigned the following SNPs to the wrong bin.
