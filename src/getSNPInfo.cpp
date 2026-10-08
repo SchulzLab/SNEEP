@@ -14,6 +14,7 @@
 
 #include "callBashCommand.hpp"
 #include "stringUtils.hpp"
+#include "parallelError.hpp"
 
 using namespace std;
 //using json = nlohmann::json;
@@ -41,7 +42,19 @@ string nextGCContent(unordered_map<string, unique_ptr<ifstream>>& gcFiles, strin
 *
 */
 
+int runGetSNPInfo(int argc, char *argv[]);
+
+// errors stop getSNPInfo with a message and exit code 1
 int main(int argc, char *argv[]){
+	try{
+		return runGetSNPInfo(argc, argv);
+	} catch (exception& e){
+		cerr << "ERROR: " << e.what() << endl;
+		return 1;
+	}
+}
+
+int runGetSNPInfo(int argc, char *argv[]){
 
 	if (argc<4)  // there should be 3 non-option arguments
 		throw invalid_argument("Usage: getSNPInfo <dbSNP file> <outputDir> <genome.fa> [numThreads]");
@@ -208,12 +221,19 @@ void computeGCContent(string dbSNPBed, string genome, string gcDir, int numThrea
 	// bedtools nuc columns (4 user columns): 7 num_A, 8 num_C, 9 num_G, 10 num_T
 	string gcCommand = "awk 'BEGIN{OFS=\"\\t\"} NR > 1 {acgt = $7 + $8 + $9 + $10; if (acgt > 0) print $4, ($8 + $9) / acgt; else print $4, -1}'";
 	cout << "bedtools slop -i " << gcDir << "/snvs_<chr>.bed -g " << genome << ".fai -b " << GC_FLANK << " | bedtools nuc -fi " << genome << " -bed stdin | " << gcCommand << " > " << gcDir << "/gc_<chr>.txt" << endl;
+	ParallelError gcError; // see parallelError.hpp
 	#pragma omp parallel for schedule(dynamic) num_threads(numThreads)
 	for (int i = 0; i < (int)chromosomes.size(); ++i){
-		string snvs = gcDir + "/snvs_" + chromosomes[i] + ".bed";
-		string currentCommand = "bedtools slop -i " + snvs + " -g " + genome + ".fai -b " + to_string(GC_FLANK) + " | bedtools nuc -fi " + genome + " -bed stdin | " + gcCommand + " > " + gcDir + "/gc_" + chromosomes[i] + ".txt && rm " + snvs;
-		bc.anyCommand(currentCommand);
+		if (gcError.failed()) continue; // an error occurred in another iteration
+		try{
+			string snvs = gcDir + "/snvs_" + chromosomes[i] + ".bed";
+			string currentCommand = "bedtools slop -i " + snvs + " -g " + genome + ".fai -b " + to_string(GC_FLANK) + " | bedtools nuc -fi " + genome + " -bed stdin | " + gcCommand + " > " + gcDir + "/gc_" + chromosomes[i] + ".txt && rm " + snvs;
+			bc.anyCommand(currentCommand);
+		}catch (const exception& e){ // exceptions must not leave the parallel region
+			gcError.set(e.what());
+		}
 	}
+	gcError.rethrow();
 	return;
 }
 

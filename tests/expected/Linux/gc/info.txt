@@ -1,0 +1,37 @@
+#	date and time: Thu Oct  8 09:44:21 2026
+#	-o outputDir: out/results/gc/
+#	-p p-value threshold motifHits: 0.5
+#	-c p-value threshold diffBindAff: 0.01
+#	-b file of background freq: ../necessaryInputFiles/frequency.txt
+#	-f footprint/region file: 
+#	-m maxOutput: 
+#	-t activeTFs: 
+#	-r REMs: data/interactions.txt
+#	-a allDiffBindAffinities: 
+#	-n number threads: 1
+#	-e ensemblID geneName mapping TFs: 
+#	-d threshold TF activity: 0
+#	-g EnsemblID to GeneName mapping REMs: data/geneNames.txt
+#	-j rounds of background sampling: 3
+#	-k path to dbSNPs: data/dbSNPs_sorted.txt
+#	-l start seed for random sampling: 2
+#	-q min TF count: 0
+#	-s match GC content in background sampling: 1
+#	-u perform gene background analysis: 0
+#	-v perform TF enrichment  analysis: 0
+#	-x transition matrix for binding affinity p-value: ../necessaryInputFiles/transition_matrix.txt
+#	PFMs: data/motifs.transfac
+#	SNPs file: data/snvs.bed
+#	path to genome: data/genome.fa
+#	path to scale file: data/scales.txt
+#	info file: out/results/gc/info.txt
+!	numSNPSInputFile: 28
+!	numRemovedDuplicates: 2
+!	overlapPeak: -
+!	overlapREMAllSNPs: 20
+!	numSNPsAllelesNotMatchingReference: 0
+!	numMotifs: 4
+WARNING background sampling: SNV chr2:7070-7071;G;T;rsN_7070: 60 of 61 bases of the GC window are N, GC content might not be meaningful
+WARNING background sampling: MAF bin (0.010000, 0.020000], GC bin (0.550000, 0.600000]: no dbSNP SNVs, 1 SNVs sampled from the nearest GC bin
+WARNING background sampling: MAF bin (0.290000, 0.300000], GC bin (0.950000, 1.000000]: no dbSNP SNVs, 1 SNVs sampled from the nearest GC bin
+WARNING background sampling: MAF bin (0.440000, 0.450000], GC bin (0.550000, 0.600000]: no dbSNP SNVs, 1 SNVs sampled from the nearest GC bin

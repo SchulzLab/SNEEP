@@ -2,7 +2,7 @@
 # getSNPInfo.cpp (preprocessing of the dbSNP file, see docs flag -k) is built separately if needed:
 #	g++ -std=c++11 -O2 -fopenmp getSNPInfo.cpp -o getSNPInfo
 
-HEADERS = Matrix_new.hpp pvalue_copy.hpp callBashCommand.hpp HandleInOutput.hpp sampleRandomRsIDs2.hpp stringUtils.hpp
+HEADERS = Matrix_new.hpp pvalue_copy.hpp callBashCommand.hpp HandleInOutput.hpp sampleRandomRsIDs2.hpp stringUtils.hpp parallelError.hpp
 
 platform=$(shell uname -s)
 

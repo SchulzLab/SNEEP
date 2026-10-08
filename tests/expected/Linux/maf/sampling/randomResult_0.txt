@@ -1,0 +1,2 @@
+SNP_position	var1	var2	rsID	MAF	peakPosition	TF	TF-binding_position	strand	effectedPositionInMotif	pvalue_BindAff_var1	pvalue_BindAff_var2	log_pvalueBindAffVar1_pvalueBindAffVar2	pvalue_DiffBindAff	REM_positions	ensemblIDs	geneNames	REMIds	coefficients	pvalues_REM	normModelScore	meanDNase1Signal	stdDNase1Signal	consortium
+chr1:8012-8013	C	T	rs18012	0.2985	.	FOXA1	chr1:8011-8021	(r)	9	0.001275	0.000029	3.779503	2.596621e-03	.	.	.	.	.	.	.	.	.	.

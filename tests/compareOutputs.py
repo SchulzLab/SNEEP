@@ -9,6 +9,7 @@ Normalisation before comparing (to be independent of thread scheduling and file 
 	- lines are sorted (the order of SNVs/TFs in the outputs depends on threads and std::sort)
 	- TF_count.txt is transposed and sorted by TF (column order = order of the motif files in the directory)
 	- info.txt: the line with date and time is dropped
+	- FASTA headers: the suffix "::chr:start-end" is dropped (added by newer bedtools versions only; SNEEP ignores it)
 	- numbers may differ by a relative tolerance of 1e-5 (last printed digit, e.g. different math libraries)
 Exit code 0 if all files match, 1 otherwise.
 """
@@ -25,6 +26,7 @@ def normalise(path):
 	with open(path) as f:
 		lines = f.read().splitlines()
 	name = os.path.basename(path)
+	lines = [l.split("::")[0] if l.startswith(">") else l for l in lines]
 	if name == "info.txt":
 		lines = [l for l in lines if not l.startswith("#\tdate and time")]
 	if name == "TF_count.txt" and lines:

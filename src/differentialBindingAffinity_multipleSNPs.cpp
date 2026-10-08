@@ -17,6 +17,7 @@
 #include "HandleInOutput.hpp"
 #include "sampleRandomRsIDs2.hpp"
 #include "stringUtils.hpp"
+#include "parallelError.hpp"
 
 //neccessary for function strcmp
 #include <stdio.h>
@@ -74,6 +75,7 @@ struct MotifHit{
 MotifHit scoreMotif(Matrix<double>& PWM, const vector<double>& pvalues, double scale, int lenMotif, const string& wildtypeSeq, const string& mutSeq, double pvalueThreshold, int pos, const string& motif, const string& chr, string* allOutput);
 string formatHit(const MotifHit& hit, const string& chr, int pos);
 string fastaName(const string& headerLine);
+string scientific(double value);
 
 int runSNEEP(int argc, char *argv[]);
 
@@ -212,17 +214,24 @@ int runSNEEP(int argc, char *argv[]){
        		transition_file>> transition_matrix;
 	}
 	unordered_map<string, vector<double>> all_pvalues;
+	ParallelError pvalueError; // see parallelError.hpp
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for(int j = 0; j < PWM_files.size(); ++j){ // iterate over all given motifs
-		motif = PWM_files[j].substr(0 , PWM_files[j].size() -4); // set motif
-		//cout << "motif name: " << motif << endl;
-		pvalue  pvalue_obj(PWMs[j].ncol(), EPSILON); // EPSILON entspricht accuracy !!! 
-		vector<double> pvalues = pvalue_obj.calculatePvalues(PWMs[j], freq, transition_matrix);
-		#pragma omp critical (storePvalues)
-		{  
-			all_pvalues[motif] = pvalues;
+		if (pvalueError.failed()) continue; // an error occurred in another iteration
+		try{
+			motif = PWM_files[j].substr(0 , PWM_files[j].size() -4); // set motif
+			//cout << "motif name: " << motif << endl;
+			pvalue  pvalue_obj(PWMs[j].ncol(), EPSILON); // EPSILON entspricht accuracy !!! 
+			vector<double> pvalues = pvalue_obj.calculatePvalues(PWMs[j], freq, transition_matrix);
+			#pragma omp critical (storePvalues)
+			{  
+				all_pvalues[motif] = pvalues;
+			}
+		}catch (const exception& e){ // exceptions must not leave the parallel region
+			pvalueError.set(e.what());
 		}
 	}
+	pvalueError.rethrow();
 	
 	//stores all sequences and the according header
 	string line = "";
@@ -311,75 +320,82 @@ int runSNEEP(int argc, char *argv[]){
 	vector<tuple<double,string, string, string>>  resultAllSNPs; // pvalue , motifName, outputPart1 outputPart2
 	int rounds = io.getRounds();
 
+	ParallelError snvError; // see parallelError.hpp
 	#pragma omp parallel for private(motif) num_threads(io.getNumberThreads())
 	for (int i = 0; i <numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
-		//define variables
-		vector<tuple<double, string>> overallResultMax; //stores max result per motif
-		unordered_map<string, string> helperOverallResult;
+		if (snvError.failed()) continue; // an error occurred in another iteration
+		try{
+			//define variables
+			vector<tuple<double, string>> overallResultMax; //stores max result per motif
+			unordered_map<string, string> helperOverallResult;
 
-		//create mutated sequence
-		vector<string> splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
-		string wildtypeSeq = sequences[i];
-		string mutSeq = createMutatedSeq(headers[i], wildtypeSeq, splittedHeader); // sets var1 in the wildtype sequence and returns the sequence with var2
-		int pos = getMutatedPos(splittedHeader[0]); // position of the snp within the genome
-		string chr = getChr(splittedHeader[0]);
+			//create mutated sequence
+			vector<string> splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
+			string wildtypeSeq = sequences[i];
+			string mutSeq = createMutatedSeq(headers[i], wildtypeSeq, splittedHeader); // sets var1 in the wildtype sequence and returns the sequence with var2
+			int pos = getMutatedPos(splittedHeader[0]); // position of the snp within the genome
+			string chr = getChr(splittedHeader[0]);
 
-		// store parts of the output that is same per snp in the following to avoid multiple access to splittedHeader
-		string part1 = splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5];
-		string part2 = "";
-		if (REMs == ""){
-			part2 = "\n";
-		}else{
-			part2 = '\t' + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n';
-		}
-		
-		//write parts of the output
-		string currentOutput = "", currentMaxOutput = "", currentResult = "";
-		if (!mutSeq.empty()){//if mutSeq is not a fit, the stringis empty
-			writeHeadersOutputFiles(writeOutput, currentOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
-		}
-		for(int j = 0; j < numMotifs; ++j){ // iterate over all given motifs
-			motif = motifNames[j]; //set motif
-			MotifHit hit = scoreMotif(PWMs[j], all_pvalues.at(motif), motifScales[j], lenMotifs[j], wildtypeSeq, mutSeq, io.getPvalue(), pos, motif, chr, writeOutput ? &currentOutput : nullptr);
-			if (hit.sigHit){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
-				if (outputMax == true){
-					cout << hit.log << "\t" << lenMotifs[j] << "\t" << motif << endl;
-				}
-				// determined maxLog pro motifs (pro SNP)
-				overallResultMax.push_back(make_tuple(hit.pvalue, motif)); //add  pvalue to overallResultMAx
-				helperOverallResult[motif] = formatHit(hit, chr, pos) + '\t';
+			// store parts of the output that is same per snp in the following to avoid multiple access to splittedHeader
+			string part1 = splittedHeader[0] + '\t' + splittedHeader[1] + '\t' + splittedHeader[2] + '\t' + splittedHeader[3] + '\t' + splittedHeader[4] + '\t' + splittedHeader[5];
+			string part2 = "";
+			if (REMs == ""){
+				part2 = "\n";
 			}else{
-				if (io.getPvalueDiff() == 1){ //for ASB/non-ASB testing (we need all snps in the output file) 
-					#pragma omp critical 
-					resultFile << part1 + '\t' + motif + "\t-\t-\t-\t0.0\t0.0\t0.0\t1.0" + (REMs != "" ? "\t.\t.\t.\t.\t.\t.\t.\t.\t.\t." : "") + "\n"; 
+				part2 = '\t' + splittedHeader[6] + '\t' +  splittedHeader[7] + '\t'  + splittedHeader[8] + '\t' + splittedHeader[9] + '\t' + splittedHeader[10] + '\t' +  splittedHeader[11] + '\t' +  splittedHeader[12] + '\t' + splittedHeader[13] + '\t' + splittedHeader[14] +  '\t'  +  splittedHeader[15] +  '\n';
+			}
+		
+			//write parts of the output
+			string currentOutput = "", currentMaxOutput = "", currentResult = "";
+			if (!mutSeq.empty()){//if mutSeq is not a fit, the stringis empty
+				writeHeadersOutputFiles(writeOutput, currentOutput, headers[i], wildtypeSeq, mutSeq, splittedHeader, pos, chr);
+			}
+			for(int j = 0; j < numMotifs; ++j){ // iterate over all given motifs
+				motif = motifNames[j]; //set motif
+				MotifHit hit = scoreMotif(PWMs[j], all_pvalues.at(motif), motifScales[j], lenMotifs[j], wildtypeSeq, mutSeq, io.getPvalue(), pos, motif, chr, writeOutput ? &currentOutput : nullptr);
+				if (hit.sigHit){ //check if there is a sig hit in one of the kmers otherwise skip diffBind score and pvalue correction
+					if (outputMax == true){
+						cout << hit.log << "\t" << lenMotifs[j] << "\t" << motif << endl;
+					}
+					// determined maxLog pro motifs (pro SNP)
+					overallResultMax.push_back(make_tuple(hit.pvalue, motif)); //add  pvalue to overallResultMAx
+					helperOverallResult[motif] = formatHit(hit, chr, pos) + '\t';
+				}else{
+					if (io.getPvalueDiff() == 1){ //for ASB/non-ASB testing (we need all snps in the output file) 
+						#pragma omp critical 
+						resultFile << part1 + '\t' + motif + "\t-\t-\t-\t0.0\t0.0\t0.0\t1.0" + (REMs != "" ? "\t.\t.\t.\t.\t.\t.\t.\t.\t.\t." : "") + "\n"; 
+					}
 				}
 			}
-		}
 	
-		//sort overall_result per snp and all TFs
-		string m = "";
-		double p = 0.0;
-		sort(overallResultMax.begin(), overallResultMax.end(), sortbyth);
-		//cout << overallResultMax.size() << endl;
+			//sort overall_result per snp and all TFs
+			string m = "";
+			double p = 0.0;
+			sort(overallResultMax.begin(), overallResultMax.end(), sortbyth);
+			//cout << overallResultMax.size() << endl;
 	
-		for (int k = 0; k < overallResultMax.size(); ++k){ // k is the number of motifs -1 (starts from zero)
-			p = get<0>(overallResultMax[k]); //pvalue as double
-			m = get<1>(overallResultMax[k]); //motif name
+			for (int k = 0; k < overallResultMax.size(); ++k){ // k is the number of motifs -1 (starts from zero)
+				p = get<0>(overallResultMax[k]); //pvalue as double
+				m = get<1>(overallResultMax[k]); //motif name
 				
-			#pragma omp critical 
-			//resultFile << part1 << '\t' << motif << '\t' << value   << std::scientific << maxDiffBinding << "\tneedToBeComputeds\t" << part2;
-			//resultAllSNPs.push_back(make_tuple( p,m,  part1 + '\t' + m + '\t' +  helperOverallResult[m],  part2 ));
-			if (p <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ // cutoff based on not fdr corrected pvalue for Jayas data (also for background sampling)
-				resultFile << part1 << '\t' << m << '\t' <<  helperOverallResult[m] <<  std::scientific << p << part2;
-				realData_TFs[m]+=1;// count number of TF hits seen in original data
+				#pragma omp critical 
+				//resultFile << part1 << '\t' << motif << '\t' << value   << std::scientific << maxDiffBinding << "\tneedToBeComputeds\t" << part2;
+				//resultAllSNPs.push_back(make_tuple( p,m,  part1 + '\t' + m + '\t' +  helperOverallResult[m],  part2 ));
+				if (p <= io.getPvalueDiff()){ // and p <= io.getPvalueDiff()){ // cutoff based on not fdr corrected pvalue for Jayas data (also for background sampling)
+					resultFile << part1 << '\t' << m << '\t' <<  helperOverallResult[m] <<  std::scientific << p << part2;
+					realData_TFs[m]+=1;// count number of TF hits seen in original data
+				}
 			}
-		}
 		
-		if (writeOutput){ // and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
-			#pragma omp critical 
-			output << currentOutput;
+			if (writeOutput){ // and (firstSeq[l] <= io.getPvalue() or secondSeq[l] <= io.getPvalue())){
+				#pragma omp critical 
+				output << currentOutput;
+			}
+		}catch (const exception& e){ // exceptions must not leave the parallel region
+			snvError.set(e.what());
 		}
 	}
+	snvError.rethrow();
 
 
 	//sort resultAllSNPs based on p-value 
@@ -488,35 +504,42 @@ int runSNEEP(int argc, char *argv[]){
 		string SNP_file = "", SNPs_overlappingREMs = "", bedFile = "", fastaFile = "", currentRound = "";
 		ofstream randomResult;
 		ifstream fasta;
+		ParallelError roundError; // see parallelError.hpp
 		#pragma omp parallel for private (currentRound, SNP_file, SNPs_overlappingREMs, bedFile, fastaFile, randomResult) num_threads(io.getNumberThreads())
 		for (int r = 0; r < rounds; r++){
+			if (roundError.failed()) continue; // an error occurred in another iteration
+			try{
 
-			currentRound = to_string(r); // store i as string
-			SNP_file = SNP_filenames[r];
-			SNPs_overlappingREMs = randomDir + "/randomSNPsOverlapingREMs_" + currentRound + ".bed";
-			bedFile = randomDir + "/snpsRegions_" + currentRound + ".bed"; 
-			fastaFile = randomDir + "/snpsRegions_" + currentRound + ".fa"; 
-			randomResult.open(randomDir + "/randomResult_" + currentRound + ".txt"); //open result file
-			if (REMs != ""){
-		//		cout << "REMs" << endl;
-				//write header output file
-				randomResult << resultHeader;
-				//intersect SNPs with REMs
-				bc.intersect(REMs, SNP_file, SNPs_overlappingREMs, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
-				//parse bedfile 
-				io.parseRandomSNPs(SNP_file, SNPs_overlappingREMs, bedFile, r);
-			}else{
-				//write header output file
-				randomResult << resultHeader;
-				//parse bedfile 
-				io.parseRandomSNPs(SNP_file, "", bedFile , r);
+				currentRound = to_string(r); // store i as string
+				SNP_file = SNP_filenames[r];
+				SNPs_overlappingREMs = randomDir + "/randomSNPsOverlapingREMs_" + currentRound + ".bed";
+				bedFile = randomDir + "/snpsRegions_" + currentRound + ".bed"; 
+				fastaFile = randomDir + "/snpsRegions_" + currentRound + ".fa"; 
+				randomResult.open(randomDir + "/randomResult_" + currentRound + ".txt"); //open result file
+				if (REMs != ""){
+			//		cout << "REMs" << endl;
+					//write header output file
+					randomResult << resultHeader;
+					//intersect SNPs with REMs
+					bc.intersect(REMs, SNP_file, SNPs_overlappingREMs, "-wa -wb"); //result stored in outputDir +  SNPsOverlappingFootrpints.bed
+					//parse bedfile 
+					io.parseRandomSNPs(SNP_file, SNPs_overlappingREMs, bedFile, r);
+				}else{
+					//write header output file
+					randomResult << resultHeader;
+					//parse bedfile 
+					io.parseRandomSNPs(SNP_file, "", bedFile , r);
+				}
+				randomResult.close();
+				//call getFasta
+			//	cout << "getFATSA" << endl;
+				bc.getFasta(bedFile, fastaFile, "-name");
+				//read current fasta file
+			}catch (const exception& e){ // exceptions must not leave the parallel region
+				roundError.set(e.what());
 			}
-			randomResult.close();
-			//call getFasta
-		//	cout << "getFATSA" << endl;
-			bc.getFasta(bedFile, fastaFile, "-name");
-			//read current fasta file
 		}
+		roundError.rethrow();
 		for (int r = 0; r < rounds; r++){
 		//for (int r = 628; r < rounds; r++){
 			cout << "round: " << r << endl;
@@ -543,48 +566,55 @@ int runSNEEP(int argc, char *argv[]){
 	//		cout<< "after read fasta" << endl;
 			
 			vector<tuple<double,string, string, string>>  currentResultAllSNPs; 
+			ParallelError backgroundError; // see parallelError.hpp
 			#pragma omp parallel for  num_threads(io.getNumberThreads())
 			for (int i = 0; i < numberSNPs; ++i){ //iterates over all sequences which contain the SNP(each sequence: 50bp + SNP + 50bp)
-				//define variables
-				vector<tuple<double, string>> current_overallResultMax; //stores max result per motif
-				unordered_map<string, string> current_helperOverallResult;
+				if (backgroundError.failed()) continue; // an error occurred in another iteration
+				try{
+					//define variables
+					vector<tuple<double, string>> current_overallResultMax; //stores max result per motif
+					unordered_map<string, string> current_helperOverallResult;
 
-				//create mutated sequence
-				vector<string> current_splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
-				string current_wildtypeSeq = current_sequences[i];
-				string current_mutSeq = createMutatedSeq(current_headers[i], current_wildtypeSeq, current_splittedHeader); // sets var1 in the wildtype sequence and returns the sequence with var2
-				int current_pos = getMutatedPos(current_splittedHeader[0]); // position of the snp within the genome
-				string current_chr = getChr(current_splittedHeader[0]);
-				for(int j = 0; j < randomSampling_numMotifs; ++j){ // iterate over all considered motifs
-					string current_motif = randomSampling_motifNames[j]; //set motif
-					MotifHit hit = scoreMotif(randomSampling_PWMs[j], all_pvalues.at(current_motif), randomSampling_scales[j], randomSampling_lenMotifs[j], current_wildtypeSeq, current_mutSeq, pvalue, current_pos, current_motif, current_chr, nullptr);
-					if (hit.sigHit){
-						//ouput maximal binding affinity for the current seq
-						current_overallResultMax.push_back(make_tuple(hit.pvalue, current_motif));
-						current_helperOverallResult[current_motif] = formatHit(hit, current_chr, current_pos) + '\t';
+					//create mutated sequence
+					vector<string> current_splittedHeader; //snp_pos var1 var2 peak_pos REM_posensemblId genName REMId coefficient pvalue consortium version reverse
+					string current_wildtypeSeq = current_sequences[i];
+					string current_mutSeq = createMutatedSeq(current_headers[i], current_wildtypeSeq, current_splittedHeader); // sets var1 in the wildtype sequence and returns the sequence with var2
+					int current_pos = getMutatedPos(current_splittedHeader[0]); // position of the snp within the genome
+					string current_chr = getChr(current_splittedHeader[0]);
+					for(int j = 0; j < randomSampling_numMotifs; ++j){ // iterate over all considered motifs
+						string current_motif = randomSampling_motifNames[j]; //set motif
+						MotifHit hit = scoreMotif(randomSampling_PWMs[j], all_pvalues.at(current_motif), randomSampling_scales[j], randomSampling_lenMotifs[j], current_wildtypeSeq, current_mutSeq, pvalue, current_pos, current_motif, current_chr, nullptr);
+						if (hit.sigHit){
+							//ouput maximal binding affinity for the current seq
+							current_overallResultMax.push_back(make_tuple(hit.pvalue, current_motif));
+							current_helperOverallResult[current_motif] = formatHit(hit, current_chr, current_pos) + '\t';
+						}
 					}
-				}
-				//sort overall_result per seq and all TFs and store maximal one
-				string m = "";
-				double p = 0.0;
+					//sort overall_result per seq and all TFs and store maximal one
+					string m = "";
+					double p = 0.0;
 
-				//sort(current_overallResultMax.begin(), current_overallResultMax.end());
-				sort(current_overallResultMax.begin(), current_overallResultMax.end(), sortbyth);
-				for (int k = 0; k< current_overallResultMax.size(); ++k){
-					p = get<0>(current_overallResultMax[k]); //pvalue
-					m = get<1>(current_overallResultMax[k]); //motif name
+					//sort(current_overallResultMax.begin(), current_overallResultMax.end());
+					sort(current_overallResultMax.begin(), current_overallResultMax.end(), sortbyth);
+					for (int k = 0; k< current_overallResultMax.size(); ++k){
+						p = get<0>(current_overallResultMax[k]); //pvalue
+						m = get<1>(current_overallResultMax[k]); //motif name
 
-					if (REMs == ""){
-						//allows only one thread to write in the output 
-						#pragma omp critical
-						currentResultAllSNPs.push_back(make_tuple(p, m,current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + current_helperOverallResult[m], "\n"));
-					}else{
-						//allows only one thread to write in the output 
-						#pragma omp critical
-						currentResultAllSNPs.push_back(make_tuple(p, m, current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m], '\t' + current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n'));
+						if (REMs == ""){
+							//allows only one thread to write in the output 
+							#pragma omp critical
+							currentResultAllSNPs.push_back(make_tuple(p, m,current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t' + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' + current_helperOverallResult[m], "\n"));
+						}else{
+							//allows only one thread to write in the output 
+							#pragma omp critical
+							currentResultAllSNPs.push_back(make_tuple(p, m, current_splittedHeader[0] + '\t' + current_splittedHeader[1] + '\t' + current_splittedHeader[2] + '\t' + current_splittedHeader[3] + '\t'  + current_splittedHeader[4] + '\t' + current_splittedHeader[5] + '\t' + m + '\t' +  current_helperOverallResult[m], '\t' + current_splittedHeader[6] + '\t' +  current_splittedHeader[7] + '\t'  + current_splittedHeader[8] + '\t' + current_splittedHeader[9] + '\t' + current_splittedHeader[10] + '\t' +  current_splittedHeader[11] + '\t' + current_splittedHeader[12] + '\t' + current_splittedHeader[13] + '\t' + current_splittedHeader[14] +  '\t'  + current_splittedHeader[15] + '\n'));
+						}
 					}
+				}catch (const exception& e){ // exceptions must not leave the parallel region
+					backgroundError.set(e.what());
 				}
 			}
+			backgroundError.rethrow();
 
 			//sort resultAllSNPs based on p-value 
 			sort(currentResultAllSNPs.begin(), currentResultAllSNPs.end(),sortby);
@@ -911,17 +941,12 @@ string createMutatedSeq(string header, string&  seq, vector<string>& splittedHea
 
 double cdf_laplace_abs_max(double scale, double numberKmers, double value){
 
-	//cout << "scale: " << scale << endl;
-	//cout << "numberKmers: " << numberKmers << endl;
-	//cout << "value: " << value << endl;
-
-	//compute cdf of laplace abs maximum 
+	//p-value of the absolute maximum of numberKmers Laplace(0, scale) values: 1 - (1 - exp(-|value|/scale))^numberKmers,
+	//computed as -expm1(numberKmers * log1p(-q)) to stay accurate for very small p-values (1 - (1 - q)^n is 0 below ~1e-16)
 	double result = 0;
 	if (scale > 0.0){ 
-		double cdf = pow((1 - exp(-(abs(value))/ scale )), numberKmers);
-	//	cout << "CDF: " << cdf << endl;
-		result = 1 - cdf;
-	//	cout << "1 - cdf: " << result << endl;
+		double q = exp(-(abs(value))/ scale);
+		result = -expm1(numberKmers * log1p(-q));
 	}else{ // if scale is not defind for this motif length 
 		result = 1.0;
 	}
@@ -985,7 +1010,7 @@ MotifHit scoreMotif(Matrix<double>& PWM, const vector<double>& pvalues, double s
 				hit.lenMotif = lenMotif;
 			}
 			if (allOutput != nullptr){
-				allOutput->append(motif + '\t' + chr + ":" + to_string(posSigHit) + forwardOrReverse(l) + '\t' + to_string(firstSeq[l]) +  "\t" +  to_string(secondSeq[l]) +  "\t" + to_string(log_) + '\t' +  to_string(diffBinding)  + '\n');
+				allOutput->append(motif + '\t' + chr + ":" + to_string(posSigHit) + forwardOrReverse(l) + '\t' + scientific(firstSeq[l]) +  "\t" +  scientific(secondSeq[l]) +  "\t" + to_string(log_) + '\t' +  scientific(diffBinding)  + '\n');
 			}
 		}
 	}
@@ -998,7 +1023,7 @@ MotifHit scoreMotif(Matrix<double>& PWM, const vector<double>& pvalues, double s
 string formatHit(const MotifHit& hit, const string& chr, int pos){
 	int start = hit.maxPosSigHit - hit.lenMotif + 1;
 	string posInMotif = (hit.orientation == "(f)") ? to_string(pos - start + 1) : to_string(hit.maxPosSigHit + 1 - pos);
-	return chr + ':' + to_string(start) + "-" + to_string(hit.maxPosSigHit + 1) + '\t' + hit.orientation + '\t' + posInMotif + '\t' + to_string(hit.val1) + '\t' + to_string(hit.val2) + '\t' + to_string(hit.log);
+	return chr + ':' + to_string(start) + "-" + to_string(hit.maxPosSigHit + 1) + '\t' + hit.orientation + '\t' + posInMotif + '\t' + scientific(hit.val1) + '\t' + scientific(hit.val2) + '\t' + to_string(hit.log);
 }
 
 /*
@@ -1012,6 +1037,15 @@ string fastaName(const string& headerLine){
 		name = name.substr(0, pos);
 	}
 	return name;
+}
+
+/*
+* value in scientific notation with 6 decimals (e.g. 2.960000e-04), as the p-values in result.txt
+*/
+string scientific(double value){
+	ostringstream result;
+	result << std::scientific << value;
+	return result.str();
 }
 
 string forwardOrReverse(int distance_){

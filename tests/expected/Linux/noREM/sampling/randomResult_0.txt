@@ -1,0 +1,2 @@
+SNP_position	var1	var2	rsID	MAF	peakPosition	TF	TF-binding_position	strand	effectedPositionInMotif	pvalue_BindAff_var1	pvalue_BindAff_var2	log_pvalueBindAffVar1_pvalueBindAffVar2	pvalue_DiffBindAff
+chr2:9931-9932	G	C	rs29931	0.4953	.	CTCF(MA0139.1)	chr2:9927-9946	(f)	5	0.037034	0.003107	2.478334	7.765311e-03

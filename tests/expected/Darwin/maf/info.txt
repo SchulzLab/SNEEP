@@ -1,4 +1,4 @@
-#	date and time: Wed Oct  7 15:10:19 2026
+#	date and time: Thu Oct  8 11:14:57 2026
 #	-o outputDir: out/results/maf/
 #	-p p-value threshold motifHits: 0.5
 #	-c p-value threshold diffBindAff: 0.01

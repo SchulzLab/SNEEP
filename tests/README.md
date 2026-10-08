@@ -39,6 +39,8 @@ Every file of the run must exist in the reference and vice versa. Before compari
 - `TF_count.txt` is transposed and sorted by TF (its column order follows the order of the motif
   files in the directory, which depends on the file system),
 - the date line of `info.txt` is dropped,
+- in FASTA headers, the suffix `::chr:start-end` is dropped (written only by newer bedtools versions,
+  e.g. 2.31 but not 2.27–2.29; SNEEP ignores it when reading),
 - numbers may differ by a relative tolerance of 1e-5 (last printed digit, e.g. other math libraries).
 
 ## Reference outputs per platform
@@ -76,9 +78,3 @@ Created by `makeTestData.py` (deterministic, fixed seed); only needed to recreat
 Expected behaviour visible in the reference: CTCF, FOXA1 and SP1 sites are significant; GATA1 is
 just not significant (p ≈ 0.011); the SNV between the N blocks triggers the GC warning; in the `gc`
 case some GC bins fall back to the nearest bin (warnings in `tests/out/logs/gc.txt`).
-
-## Known issues contained in the reference (2026-10-07)
-
-- Very strong hits get p-value 0 (`1 - (1 - e^(-x/b))^n` underflows below ~1e-16), e.g. the CTCF SNVs.
-
-Fixing them will change the output; update the reference then.
