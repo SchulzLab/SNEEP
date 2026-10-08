@@ -10,7 +10,7 @@ set -u
 TESTS=$(cd "$(dirname "$0")" && pwd)
 SRC=$TESTS/../src
 WORK=$TESTS/out
-PLATFORM=$(uname -s) # random numbers (std::uniform_int_distribution) differ between libstdc++ (Linux) and libc++ (macOS)
+PLATFORM=$(uname -s) # one reference per platform: random numbers (std::uniform_int_distribution) differ between standard libraries
 EXPECTED=$TESTS/expected/$PLATFORM
 CXX=${CXX:-g++}
 
@@ -32,6 +32,9 @@ for tool in differentialBindingAffinity_multipleSNPs; do
 		exit 1
 	fi
 done
+# fingerprint of the random numbers of this compiler/standard library (see rngFingerprint.cpp)
+$CXX -std=c++11 "$TESTS/rngFingerprint.cpp" -o "$WORK/bin/rngFingerprint" 2> "$WORK/logs/build_rngFingerprint.txt" || { echo "build of rngFingerprint failed"; exit 1; }
+FINGERPRINT=$("$WORK/bin/rngFingerprint" | cksum | awk '{print $1}')
 # the python helpers are called via PATH; their shebang is "python", which might only exist as python3
 if ! python -c "" > /dev/null 2>&1; then # macOS has a stub "python" that only asks to install the developer tools
 	mkdir -p "$WORK/python"
@@ -73,6 +76,7 @@ if [ "${1:-}" == "--update" ]; then
 	rm -rf "${EXPECTED:?}"
 	mkdir -p "$EXPECTED"
 	cp -R "$WORK/results/." "$EXPECTED/"
+	echo "$FINGERPRINT" > "$EXPECTED/rng_fingerprint.txt"
 	echo "expected outputs updated: $EXPECTED"
 	exit 0
 fi
@@ -80,4 +84,13 @@ if [ ! -d "$EXPECTED" ]; then
 	echo "no expected outputs for $PLATFORM yet; create them with: bash tests/runRegressionTests.sh --update"
 	exit 1
 fi
-python3 "$TESTS/compareOutputs.py" "$EXPECTED" "$WORK/results" && echo "PASSED" || { echo "FAILED"; exit 1; }
+# sampling-dependent outputs are only comparable with the same random numbers (same compiler/standard library)
+MODE=""
+if [ ! -f "$EXPECTED/rng_fingerprint.txt" ]; then
+	echo "note: no random number fingerprint stored with the reference, comparing all outputs (store it with --update)"
+elif [ "$(cat "$EXPECTED/rng_fingerprint.txt")" != "$FINGERPRINT" ]; then
+	echo "note: this compiler/standard library draws other random numbers than the one of the reference (std::uniform_int_distribution),"
+	echo "      so the sampled random SNPs differ; comparing only the outputs that do not depend on them (input SNPs, case given)"
+	MODE="--without-sampling"
+fi
+python3 "$TESTS/compareOutputs.py" $MODE "$EXPECTED" "$WORK/results" && echo "PASSED" || { echo "FAILED"; exit 1; }

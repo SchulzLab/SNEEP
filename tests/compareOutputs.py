@@ -2,7 +2,9 @@
 """
 Compares the outputs of a regression test run with the expected outputs.
 
-Usage: python3 compareOutputs.py <expected dir> <actual dir>
+Usage: python3 compareOutputs.py [--without-sampling] <expected dir> <actual dir>
+	--without-sampling	skip the outputs that depend on the sampled random SNPs (sampling/ of all cases except
+				given, background rows of TF_count.txt); used if the random numbers of the toolchain differ
 
 Every file below <expected dir> must exist below <actual dir> with the same content, and vice versa.
 Normalisation before comparing (to be independent of thread scheduling and file system order):
@@ -11,6 +13,7 @@ Normalisation before comparing (to be independent of thread scheduling and file 
 	- info.txt: the line with date and time is dropped
 	- FASTA headers: the suffix "::chr:start-end" is dropped (added by newer bedtools versions only; SNEEP ignores it)
 	- numbers may differ by a relative tolerance of 1e-5 (last printed digit, e.g. different math libraries)
+	- rng_fingerprint.txt (toolchain fingerprint, used by runRegressionTests.sh) is not compared
 Exit code 0 if all files match, 1 otherwise.
 """
 
@@ -22,10 +25,12 @@ REL_TOL = 1e-5
 MAX_SHOWN = 10
 
 
-def normalise(path):
+def normalise(path, without_sampling=False):
 	with open(path) as f:
 		lines = f.read().splitlines()
 	name = os.path.basename(path)
+	if name == "TF_count.txt" and without_sampling: # keep the TF names and the counts of the input SNPs
+		lines = [l for l in lines if l.split("\t")[0] in (".", "realData")]
 	lines = [l.split("::")[0] if l.startswith(">") else l for l in lines]
 	if name == "info.txt":
 		lines = [l for l in lines if not l.startswith("#\tdate and time")]
@@ -50,20 +55,28 @@ def same_line(a, b):
 	return len(ta) == len(tb) and all(same_token(x, y) for x, y in zip(ta, tb))
 
 
-def files_below(directory):
+def files_below(directory, without_sampling=False):
 	result = set()
 	for root, _, files in os.walk(directory):
 		for f in files:
-			result.add(os.path.relpath(os.path.join(root, f), directory))
+			path = os.path.relpath(os.path.join(root, f), directory)
+			if f == "rng_fingerprint.txt":
+				continue
+			if without_sampling and "/sampling/" in "/" + path and not path.startswith("given/"):
+				continue
+			result.add(path)
 	return result
 
 
 def main():
-	if len(sys.argv) < 3:
-		print("Usage: python3 compareOutputs.py <expected dir> <actual dir>")
+	args = sys.argv[1:]
+	without_sampling = "--without-sampling" in args
+	args = [a for a in args if a != "--without-sampling"]
+	if len(args) < 2:
+		print("Usage: python3 compareOutputs.py [--without-sampling] <expected dir> <actual dir>")
 		sys.exit(2)
-	expected_dir, actual_dir = sys.argv[1], sys.argv[2]
-	expected, actual = files_below(expected_dir), files_below(actual_dir)
+	expected_dir, actual_dir = args[0], args[1]
+	expected, actual = files_below(expected_dir, without_sampling), files_below(actual_dir, without_sampling)
 	failed = 0
 	for f in sorted(expected - actual):
 		print("MISSING  " + f)
@@ -72,7 +85,7 @@ def main():
 		print("EXTRA    " + f)
 		failed += 1
 	for f in sorted(expected & actual):
-		e, a = normalise(os.path.join(expected_dir, f)), normalise(os.path.join(actual_dir, f))
+		e, a = normalise(os.path.join(expected_dir, f), without_sampling), normalise(os.path.join(actual_dir, f), without_sampling)
 		if e == a:
 			continue
 		if len(e) == len(a) and all(same_line(x, y) for x, y in zip(e, a)):

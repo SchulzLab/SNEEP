@@ -102,6 +102,8 @@ Flag -l: Reproducible results for random background analysis
 ==============================================================
 To reproduce the results of the random background analysis, we recommend the use of a specific seed variable. Default: -l 1. 
 
+Note that the same seed reproduces the same random SNPs only with the same compiler and C++ standard library (e.g., the random SNPs differ between macOS and Linux). The random number generator itself is the same everywhere, but the conversion of its numbers into positions (std::uniform_int_distribution) is implemented differently by different standard libraries and versions. The results for the input SNPs are not affected.
+
 Flag -q:  TF count
 =====================
 This flag allows us to exclude TFs from the background sampling that do not exceed a TF count. Default: -q 0

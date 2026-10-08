@@ -1,5 +1,5 @@
-.	GATA1	SP1	CTCF(MA0139.1)	FOXA1
-realData	0	3	3	3
-0	0	0	0	1
-1	0	0	0	1
-2	0	0	1	0
+.	SP1	GATA1	FOXA1	CTCF(MA0139.1)
+realData	3	0	3	3
+0	0	0	1	0
+1	0	0	1	0
+2	0	0	0	1

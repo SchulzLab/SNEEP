@@ -1,4 +1,4 @@
-#	date and time: Thu Oct  8 09:44:21 2026
+#	date and time: Thu Oct  8 13:45:26 2026
 #	-o outputDir: out/results/gc/
 #	-p p-value threshold motifHits: 0.5
 #	-c p-value threshold diffBindAff: 0.01

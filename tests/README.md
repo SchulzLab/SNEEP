@@ -46,9 +46,17 @@ Every file of the run must exist in the reference and vice versa. Before compari
 ## Reference outputs per platform
 
 `tests/expected/<uname -s>/` (`Darwin`, `Linux`). The random numbers of the background sampling
-(`std::uniform_int_distribution`) differ between libc++ (macOS) and libstdc++ (Linux), so the
-sampled SNVs differ between platforms. The first run on a new platform creates its reference with
-`--update` (only from a code version whose output is trusted).
+(`std::uniform_int_distribution`) differ between standard libraries (libc++ on macOS, libstdc++ on
+Linux, and possibly between versions), so the sampled SNVs differ. The first run on a new platform
+creates its reference with `--update` (only from a code version whose output is trusted).
+
+`--update` also stores a fingerprint of the random numbers of the toolchain
+(`rng_fingerprint.txt`, checksum of the output of `rngFingerprint.cpp`). If a later run (e.g. on
+another machine with another compiler version) has a different fingerprint, the test says so and
+compares only the outputs that do not depend on the random SNPs: everything about the input SNPs,
+the counts of the input SNPs in `TF_count.txt`, and the complete case `given` (fixed random SNPs).
+`data/presampled/` must therefore not contain multi-allelic SNVs, because SNEEP picks one of their
+alleles at random.
 
 ## Intended changes of the output
 
