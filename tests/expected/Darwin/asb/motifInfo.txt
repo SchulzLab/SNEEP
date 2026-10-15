@@ -1,0 +1,5 @@
+TF	originalLen	basesWithHighEntropy	start	end	adaptedLen	#basesEntropyHigher1.8
+CTCF(MA0139.1)	19	0	0	0	19	1
+GATA1	11	4	2	2	7	0
+FOXA1	12	2	0	2	10	1
+SP1	9	0	0	0	9	0

@@ -87,7 +87,9 @@ If this flag is set all absolute maximal differential TF binding scores are prin
 
 Flag -t, -d and -e: Active TFs of the cell type of interest
 =============================================================
-To consider only the TFs that are expressed in the analyzed cell type or tissue, our computational approach requires three pieces of information. A file tthat contains the expression value per TF (-t),  a threshold for deciding which TFs are active and a mapping between the ensemblID and the TF name. The last file is provided in our GitHub repository for the TF set used within our analyses. 
+To consider only the TFs that are expressed in the analyzed cell type or tissue, our computational approach requires three pieces of information. A file that contains the expression value per TF (-t),  a threshold for deciding which TFs are active and a mapping between the ensemblID and the TF name. The last file is provided in our GitHub repository for the TF set used within our analyses. 
+
+The expression file (-t) is tab-separated with the Ensembl gene ID and the expression value per line. The first line is a header and is skipped (e.g., geneID and expression, see examples/RNA-seq_humanLV_hiPSC-CM.txt). A TF is considered active if its expression value is greater than the threshold (-d).
 
 Flag -j: Number of sampled background SNP sets
 =================================================

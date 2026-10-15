@@ -1,0 +1,33 @@
+#	date and time: Mon Oct 12 11:41:07 2026
+#	-o outputDir: out/results/regions/
+#	-p p-value threshold motifHits: 0.5
+#	-c p-value threshold diffBindAff: 0.01
+#	-b file of background freq: ../necessaryInputFiles/frequency.txt
+#	-f footprint/region file: data/regions.bed
+#	-m maxOutput: 
+#	-t activeTFs: data/expression.txt
+#	-r REMs: 
+#	-a allDiffBindAffinities: 
+#	-n number threads: 1
+#	-e ensemblID geneName mapping TFs: data/tfEnsemblIDs.txt
+#	-d threshold TF activity: 1
+#	-g EnsemblID to GeneName mapping REMs: 
+#	-j rounds of background sampling: 0
+#	-k path to dbSNPs: 
+#	-l start seed for random sampling: 1
+#	-q min TF count: 0
+#	-s match GC content in background sampling: 0
+#	-u perform gene background analysis: 0
+#	-v perform TF enrichment  analysis: 0
+#	-x transition matrix for binding affinity p-value: ../necessaryInputFiles/transition_matrix.txt
+#	PFMs: data/motifs.transfac
+#	SNPs file: data/snvs.vcf
+#	path to genome: data/genome.fa
+#	path to scale file: data/scales.txt
+#	info file: out/results/regions/info.txt
+!	numSNPSInputFile: 29
+!	numRemovedDuplicates: 2
+!	overlapPeak: 6
+!	overlapREMAllSNPs: -
+!	numSNPsAllelesNotMatchingReference: 0
+!	numMotifs: 2

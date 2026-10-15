@@ -17,6 +17,9 @@ Creates:
 	interactions.txt		REMs linked to genes (-r), 12 columns
 	geneNames.txt			ensemblID,geneName (-g)
 	dbSNPs_sorted.txt		mini dbSNP file in the format written by getSNPInfo (-k), incl. GC content
+	regions.bed			regions for -f (open chromatin / footprints)
+	expression.txt, tfEnsemblIDs.txt	TF expression (-t) and ensemblID -> TF name (-e)
+	snvs.vcf			snvs.bed as VCF, with one multi-allelic SNV
 """
 
 import os
@@ -192,6 +195,35 @@ def main():
 	with open(os.path.join(out_dir, "dbSNPs_sorted.txt"), "w") as f:
 		for _, line in dbsnp:
 			f.write(line + "\n")
+
+	# data for the cases with further options (no random numbers, so the files above stay unchanged)
+	write_option_data(out_dir, snvs)
+
+
+def write_option_data(out_dir, snvs):
+	"""Input files for -f, -t/-d/-e and VCF input (case regions of runRegressionTests.sh)."""
+	# -f: regions around the CTCF sites, the first FOXA1 site, one random SNV and the SNV next to an N block
+	with open(os.path.join(out_dir, "regions.bed"), "w") as f:
+		f.write("chr1\t950\t1900\nchr1\t3950\t4100\nchr1\t8400\t8450\nchr2\t9000\t9100\n")
+	# -e: ensemblID -> TF name (header line); -t: expression per ensemblID (header line, as expected by
+	# seperatePFMsAndCheckActivity.py); with -d 1: CTCF and FOXA1 active, GATA1 below, SP1 not measured
+	ids = {"CTCF": "ENSG00000102974", "FOXA1": "ENSG00000129514", "GATA1": "ENSG00000102145", "SP1": "ENSG00000185591"}
+	with open(os.path.join(out_dir, "tfEnsemblIDs.txt"), "w") as f:
+		f.write("GeneStableID\tGeneName\n")
+		for name, ensembl in ids.items():
+			f.write(f"{ensembl}\t{name}\n")
+	with open(os.path.join(out_dir, "expression.txt"), "w") as f:
+		f.write("ensemblID\texpression\n")
+		f.write(f"{ids['CTCF']}\t10.5\n{ids['FOXA1']}\t3.2\n{ids['GATA1']}\t0.4\n")
+	# VCF version of snvs.bed (REF = var1, ALT = var2, 1-based POS, MAF in INFO); rsRandom2 multi-allelic,
+	# plus the duplicate and the indel line as in snvs.bed
+	lines = list(snvs) + [snvs[0], ("chr1", 15000, "A", "AT", "rsIndel", "0.2")]
+	with open(os.path.join(out_dir, "snvs.vcf"), "w") as f:
+		f.write("##fileformat=VCFv4.0\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+		for chrom, pos, var1, var2, rs, maf in lines:
+			if rs == "rsRandom2":
+				var2 = var2 + "," + next(b for b in BASES if b not in (var1, var2))
+			f.write("\t".join([chrom[3:], str(pos + 1), rs, var1, var2, ".", ".", f"MAF={maf}"]) + "\n")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,2 @@
+.	FOXA1	CTCF(MA0139.1)
+realData	1	3

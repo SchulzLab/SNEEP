@@ -1,0 +1,6 @@
+chr1	1009	1010	G	C	rsMotif0_0	0.012	chr1	950	1900
+chr1	1409	1410	C	G	rsMotif0_1	0.05	chr1	950	1900
+chr1	1814	1815	G	C	rsMotif0_2	0.1	chr1	950	1900
+chr1	4006	4007	A	C	rsMotif2_0	0.3	chr1	3950	4100
+chr1	8421	8422	C	A	rsRandom1	0.05	chr1	8400	8450
+chr2	9045	9046	T	G	rsN_9045	0.3	chr2	9000	9100

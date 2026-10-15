@@ -63,7 +63,13 @@ run maf differentialBindingAffinity_multipleSNPs -o $R/maf/ $COMMON -j 3 -k $DBS
 run gc differentialBindingAffinity_multipleSNPs -o $R/gc/ $COMMON -j 3 -k $DBSNP -l 2 -s true -r data/interactions.txt -g data/geneNames.txt $INPUT
 # 3. without REMs
 run noREM differentialBindingAffinity_multipleSNPs -o $R/noREM/ $COMMON -j 2 -k $DBSNP -l 5 $INPUT
-# 4. random SNPs given (-i), read-only use of data/presampled (copy of the random SNPs of case noREM)
+# 4. background with all motifs (-q -1, also TFs without hit in the input) and all scores (-a)
+run allTFs differentialBindingAffinity_multipleSNPs -o $R/allTFs/ $COMMON -j 3 -k $DBSNP -l 7 -q -1 -a $INPUT
+# 5. ASB mode (-c 1): also lines for motifs without hit, with REMs
+run asb differentialBindingAffinity_multipleSNPs -o $R/asb/ -n 1 -p 0.5 -c 1 -b ../necessaryInputFiles/frequency.txt -x ../necessaryInputFiles/transition_matrix.txt -r data/interactions.txt -g data/geneNames.txt $INPUT
+# 6. VCF input, only SNVs in regions (-f), only expressed TFs (-t/-d/-e: CTCF, FOXA1)
+run regions differentialBindingAffinity_multipleSNPs -o $R/regions/ $COMMON -f data/regions.bed -t data/expression.txt -d 1 -e data/tfEnsemblIDs.txt data/motifs.transfac data/snvs.vcf data/genome.fa data/scales.txt
+# 7. random SNPs given (-i), read-only use of data/presampled (copy of the random SNPs of case noREM)
 PRESAMPLED_BEFORE=$(cat data/presampled/* | cksum)
 run given differentialBindingAffinity_multipleSNPs -o $R/given/ $COMMON -j 2 -i data/presampled $INPUT
 if [ "$(ls data/presampled | wc -l | tr -d ' ')" != "2" ] || [ "$(cat data/presampled/* | cksum)" != "$PRESAMPLED_BEFORE" ]; then

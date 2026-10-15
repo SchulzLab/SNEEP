@@ -30,6 +30,9 @@ last run are in `tests/out/` (not under version control).
 | `maf` | REMs (`-r`, `-g`), 3 background rounds matched by MAF (`-j 3 -k … -l 2`) |
 | `gc` | as `maf`, matched by MAF and GC content (`-s true`) |
 | `noREM` | no REMs, 2 background rounds (`-j 2 -l 5`) |
+| `allTFs` | background with all motifs (`-q -1`, GATA1 has no hit in the input but in the background) and all scores (`-a`, `AllDiffBindAffinity.txt`); `-j 3 -l 7` |
+| `asb` | ASB mode (`-c 1`): one line per SNV and motif, also without hit; with REMs |
+| `regions` | VCF input (`data/snvs.vcf`, one multi-allelic SNV), only SNVs in regions (`-f data/regions.bed`), only expressed TFs (`-t data/expression.txt -d 1 -e data/tfEnsemblIDs.txt`: CTCF, FOXA1) |
 | `given` | random SNPs given (`-j 2 -i data/presampled`); results must equal `noREM`, and `data/presampled` must stay unchanged |
 
 ## Comparison (`compareOutputs.py`)
@@ -78,6 +81,7 @@ Created by `makeTestData.py` (deterministic, fixed seed); only needed to recreat
 - `motifs.transfac`, `scales.txt`: the 4 motifs and scales from the real files
 - `snvs.bed`: 26 input SNVs, plus a duplicate line and an indel
 - `interactions.txt`, `geneNames.txt`: 6 REMs of 6 genes, two of them overlapping
+- `regions.bed`, `expression.txt`, `tfEnsemblIDs.txt`, `snvs.vcf`: inputs of case `regions`
 - `presampled/`: `randomSNPs_0.txt` and `randomSNPs_1.txt`, a copy of the random SNPs of case `noREM`
   (input for `-i`; not created by `makeTestData.py`, copy them again if the data set changes)
 - `dbSNPs_sorted.txt`: about 3,500 SNVs in the format of `getSNPInfo` (incl. GC content, column 9),
